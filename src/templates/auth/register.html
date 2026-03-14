@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+  </head>
+  <body class="min-h-screen" style="background: var(--background); color: var(--foreground);">
+    <main class="flex min-h-screen items-center justify-center px-6 py-12">
+      <div class="w-full max-w-md rounded-3xl border p-8 shadow-sm" style="border-color: var(--border); background: var(--card); color: var(--card-foreground);">
+        <div class="flex items-center gap-2 text-sm font-semibold">
+          <div class="h-2.5 w-2.5 rounded-full" style="background: var(--primary);"></div>
+          Virtual Greenhouse
+        </div>
+        <h1 class="mt-6 text-2xl font-semibold">Create your account</h1>
+        <p class="mt-2 text-sm" style="color: var(--muted-foreground);">Get started with a clean greenhouse dashboard.</p>
+
+        <form class="mt-6 space-y-4" action="{{ url_for('auth.register') }}" method="post">
+          {% for message in get_flashed_messages() %}
+          <div class="rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary); color: var(--secondary-foreground);">
+            {{ message }}
+          </div>
+          {% endfor %}
+          {% if msg %}
+          <div class="rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary); color: var(--secondary-foreground);">
+            {{ msg }}
+          </div>
+          {% endif %}
+          <div class="space-y-2">
+            <label class="text-xs uppercase tracking-wide" style="color: var(--muted-foreground);" for="username">Username</label>
+            <input class="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" style="border-color: var(--input);" id="username" name="username" type="text" placeholder="Choose a username" required />
+          </div>
+          <div class="space-y-2">
+            <label class="text-xs uppercase tracking-wide" style="color: var(--muted-foreground);" for="password">Password</label>
+            <input class="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" style="border-color: var(--input);" id="password" name="password" type="password" placeholder="Create a password" required />
+          </div>
+          <div class="space-y-2">
+            <label class="text-xs uppercase tracking-wide" style="color: var(--muted-foreground);" for="email">Email</label>
+            <input class="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400" style="border-color: var(--input);" id="email" name="email" type="email" placeholder="you@example.com" required />
+          </div>
+          <button class="w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow" style="background: var(--primary);" type="submit">
+            Sign Up
+          </button>
+        </form>
+
+        <p class="mt-6 text-center text-sm" style="color: var(--muted-foreground);">
+          Already have an account?
+          <a class="font-semibold" style="color: var(--primary);" href="{{ url_for('auth.login') }}">Sign in</a>
+        </p>
+      </div>
+    </main>
+  </body>
+</html>

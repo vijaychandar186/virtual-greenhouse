@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ 'Edit Greenhouse' if greenhouse else 'New Greenhouse' }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+  </head>
+  <body class="flex min-h-screen" style="background: var(--background); color: var(--foreground);">
+    {% set active = 'greenhouses' %}
+    {% include 'layout/_sidebar.html' %}
+
+    <div class="main-shell flex-1 flex flex-col min-w-0 overflow-hidden">
+    <main class="flex-1 overflow-auto px-8 py-8 max-w-2xl">
+      <div class="mb-6">
+        <p class="text-xs mb-1" style="color: var(--muted-foreground);">
+          <a href="{{ url_for('greenhouse.existing') }}" class="hover:underline">Greenhouses</a>
+          {% if greenhouse %}
+          <span class="mx-1">›</span>
+          <a href="{{ url_for('greenhouse.greenhouse_detail', gh_id=greenhouse.id) }}" class="hover:underline">{{ greenhouse.greenhouse_name }}</a>
+          <span class="mx-1">›</span> Edit
+          {% else %}
+          <span class="mx-1">›</span> New
+          {% endif %}
+        </p>
+        <h1 class="text-2xl font-semibold">{{ 'Edit Greenhouse' if greenhouse else 'New Greenhouse' }}</h1>
+      </div>
+
+      <div class="rounded-2xl border p-8" style="border-color: var(--border); background: var(--card);">
+        {% for message in get_flashed_messages() %}
+        <div class="mb-5 rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary);">{{ message }}</div>
+        {% endfor %}
+
+        <form action="{{ url_for('greenhouse.edit_greenhouse', gh_id=greenhouse.id) if greenhouse else url_for('greenhouse.create_greenhouse') }}" method="POST" class="space-y-5">
+          <div>
+            <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);" for="greenhouse_name">
+              Greenhouse Name <span style="color: var(--destructive);">*</span>
+            </label>
+            <input class="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                   style="border-color: var(--input);"
+                   type="text" id="greenhouse_name" name="greenhouse_name" required placeholder="e.g. North Wing, Hydro Bay 3"
+                   value="{{ greenhouse.greenhouse_name if greenhouse else '' }}" />
+          </div>
+
+          <div>
+            <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);" for="location">
+              Location <span style="color: var(--destructive);">*</span>
+            </label>
+            <input class="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                   style="border-color: var(--input);"
+                   type="text" id="location" name="location" required placeholder="e.g. Building A, Zone 2"
+                   value="{{ greenhouse.location if greenhouse else '' }}" />
+          </div>
+
+          <div>
+            <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);" for="description">
+              Description <span class="normal-case text-xs">(optional)</span>
+            </label>
+            <textarea class="w-full rounded-xl border px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
+                      style="border-color: var(--input);"
+                      id="description" name="description" rows="2"
+                      placeholder="What do you grow here? Any notes.">{{ greenhouse.description if greenhouse else '' }}</textarea>
+          </div>
+
+          <div class="flex gap-3 pt-2">
+            <button class="rounded-full px-6 py-2.5 text-sm font-semibold text-white shadow"
+                    style="background: var(--primary);" type="submit">
+              {{ 'Save Changes' if greenhouse else 'Create Greenhouse' }}
+            </button>
+            <a href="{% if greenhouse %}{{ url_for('greenhouse.greenhouse_detail', gh_id=greenhouse.id) }}{% else %}{{ url_for('greenhouse.existing') }}{% endif %}"
+               class="rounded-full border px-6 py-2.5 text-sm font-semibold"
+               style="border-color: var(--border);">Cancel</a>
+          </div>
+          {% if not greenhouse %}
+          <p class="text-xs pt-1" style="color: var(--muted-foreground);">After creating, you'll be taken to the greenhouse page to add sensors.</p>
+          {% endif %}
+        </form>
+      </div>
+    </main>
+    </div>
+  </body>
+</html>

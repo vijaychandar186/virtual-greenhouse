@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Schemas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+  </head>
+  <body class="flex min-h-screen" style="background: var(--background); color: var(--foreground);">
+    {% set active = 'schemas' %}
+    {% include 'layout/_sidebar.html' %}
+
+    <div class="main-shell flex-1 flex flex-col min-w-0 overflow-hidden">
+    <main class="flex-1 overflow-auto px-8 py-8">
+
+      {% for message in get_flashed_messages() %}
+      <div class="mb-4 rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary);">{{ message }}</div>
+      {% endfor %}
+
+      <!-- Page header -->
+      <div class="mb-8">
+        <p class="text-xs uppercase tracking-[0.2em]" style="color: var(--muted-foreground);">Configuration</p>
+        <h1 class="text-2xl font-semibold">Sensor Templates</h1>
+        <p class="text-sm mt-1" style="color: var(--muted-foreground);">
+          Global reusable templates. To add sensors to a greenhouse, go to
+          <a href="{{ url_for('greenhouse.existing') }}" class="underline" style="color: var(--primary);">Greenhouses</a>
+          and click "Manage" on a greenhouse.
+        </p>
+      </div>
+
+      <!-- ── Template picker ── -->
+      <div class="mb-8">
+        <p class="text-xs uppercase tracking-widest mb-4" style="color: var(--muted-foreground);">Start from a template</p>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" id="template-grid">
+          <!-- cards injected by JS -->
+        </div>
+      </div>
+
+      <!-- ── Create / edit panel ── -->
+      <div id="create-schema-panel" class="hidden mb-10">
+        <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card);">
+          <div class="flex items-start justify-between mb-1">
+            <h2 class="text-base font-semibold" id="panel-title">New Schema</h2>
+            <button type="button" onclick="closePanel()"
+                    class="h-6 w-6 rounded flex items-center justify-center hover:bg-black/5 transition text-sm"
+                    style="color: var(--muted-foreground);">✕</button>
+          </div>
+          <p class="text-sm mb-5" style="color: var(--muted-foreground);">
+            Edit the name, description and fields, then save.
+          </p>
+          <form action="{{ url_for('greenhouse.create_schema') }}" method="POST" id="schema-form">
+            <div class="grid gap-4 md:grid-cols-2 mb-5">
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Schema Name *</label>
+                <input type="text" name="name" id="schema-name-input" required
+                       placeholder="e.g. climate_v1, hydro_sensors"
+                       class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                       style="border-color: var(--input);" />
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Description</label>
+                <input type="text" name="description" id="schema-desc-input"
+                       placeholder="What does this schema track?"
+                       class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                       style="border-color: var(--input);" />
+              </div>
+            </div>
+
+            <div class="mb-5">
+              <div class="flex items-center justify-between mb-3">
+                <label class="text-xs uppercase tracking-wide" style="color: var(--muted-foreground);">Fields</label>
+                <button type="button" onclick="addField()"
+                        class="rounded-full border px-3 py-1 text-xs font-medium hover:bg-black/5 transition"
+                        style="border-color: var(--border);">+ Add Field</button>
+              </div>
+              <div id="fields-container" class="space-y-2"></div>
+              <input type="hidden" name="fields_json" id="fields-json-input" value="[]" />
+            </div>
+
+            <div class="flex gap-3">
+              <button type="button" onclick="submitSchema()"
+                      class="rounded-full px-5 py-2 text-sm font-semibold text-white shadow"
+                      style="background: var(--primary);">Save Schema</button>
+              <button type="button" onclick="closePanel()"
+                      class="rounded-full border px-5 py-2 text-sm font-semibold"
+                      style="border-color: var(--border);">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ── Saved schemas ── -->
+      {% if schemas %}
+      <div>
+        <p class="text-xs uppercase tracking-widest mb-4" style="color: var(--muted-foreground);">Saved templates</p>
+        <div class="space-y-4">
+          {% for schema in schemas %}
+          <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card);">
+            <div class="flex items-start justify-between">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 mb-1">
+                  <h2 class="text-base font-semibold">{{ schema.name }}</h2>
+                  <span class="rounded-full border px-2.5 py-0.5 text-xs shrink-0" style="border-color: var(--border); color: var(--muted-foreground);">
+                    {{ schema.fields|length }} field{{ 's' if schema.fields|length != 1 }}
+                  </span>
+                </div>
+                {% if schema.description %}
+                <p class="text-sm mb-3" style="color: var(--muted-foreground);">{{ schema.description }}</p>
+                {% endif %}
+                {% if schema.fields %}
+                <div class="flex flex-wrap gap-2 mt-2">
+                  {% for field in schema.fields %}
+                  <div class="rounded-full border px-3 py-1 text-xs" style="border-color: var(--border);">
+                    <span class="font-medium">{{ field.name }}</span>
+                    <span style="color: var(--muted-foreground);"> {{ field.type }}{% if field.unit %} · {{ field.unit }}{% endif %}</span>
+                  </div>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-xs" style="color: var(--muted-foreground);">No fields defined yet — auto-discovered on first ingest.</p>
+                {% endif %}
+              </div>
+              <div class="ml-4 flex items-center gap-2 shrink-0">
+                <span class="text-xs" style="color: var(--muted-foreground);">{{ schema.created_at[:10] if schema.created_at else '' }}</span>
+                <button class="rounded-lg border px-3 py-1 text-xs hover:bg-black/5 transition edit-schema-btn"
+                        style="border-color: var(--border); color: var(--muted-foreground);"
+                        data-id="{{ schema.id }}">Edit</button>
+                <form action="{{ url_for('greenhouse.delete_schema', schema_id=schema.id) }}" method="POST"
+                      onsubmit="return confirmSubmit(this, 'Delete Schema', 'Delete schema \'{{ schema.name }}\'? Existing readings are kept.', {confirmLabel:'Delete', confirmStyle:'background:var(--destructive,#dc2626);'})">
+                  <button class="rounded-lg border px-3 py-1 text-xs hover:bg-red-50 transition"
+                          style="border-color: var(--border); color: var(--muted-foreground);">Delete</button>
+                </form>
+              </div>
+            </div>
+
+            <!-- API snippet -->
+            <details class="mt-4">
+              <summary class="text-xs cursor-pointer select-none" style="color: var(--muted-foreground);">Show API example</summary>
+              <div class="mt-3 rounded-xl border p-4 overflow-x-auto" style="border-color: var(--border); background: var(--secondary);">
+                <pre class="code-block text-xs whitespace-pre">curl -X POST http://localhost:5000/api/ingest \
+  -H "X-API-Key: &lt;your-api-key&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "my-device-01",
+    "schema": "{{ schema.name }}",
+    "data": {
+      {% for field in schema.fields %}"{{ field.name }}": &lt;value&gt;{% if not loop.last %},
+      {% endif %}{% endfor %}
+
+    }
+  }'</pre>
+              </div>
+            </details>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="rounded-2xl border p-12 text-center" style="border-color: var(--border); background: var(--card);">
+        <p class="text-base font-semibold mb-2">No schemas saved yet</p>
+        <p class="text-sm" style="color: var(--muted-foreground);">
+          Pick a template above or start from scratch.
+        </p>
+      </div>
+      {% endif %}
+
+    </main>
+    </div>
+
+    {% include 'layout/_modal.html' %}
+
+    <script id="schemas-json" type="application/json">{{ schemas | tojson }}</script>
+    <script>
+      // ─── Template definitions ───────────────────────────────────────────────
+      const TEMPLATES = [
+        {
+          id: 'climate',
+          name: 'Climate Monitor',
+          description: 'Air temperature, humidity, CO₂, light and pressure.',
+          icon: '🌡️',
+          fields: [
+            { name: 'temperature_c',  type: 'number',  unit: '°C'  },
+            { name: 'humidity_pct',   type: 'number',  unit: '%'   },
+            { name: 'co2_ppm',        type: 'number',  unit: 'ppm' },
+            { name: 'light_lux',      type: 'number',  unit: 'lux' },
+            { name: 'pressure_hpa',   type: 'number',  unit: 'hPa' },
+          ],
+        },
+        {
+          id: 'hydroponics',
+          name: 'Hydroponics',
+          description: 'pH, EC, water temperature, dissolved oxygen and level.',
+          icon: '💧',
+          fields: [
+            { name: 'ph',                type: 'number', unit: ''      },
+            { name: 'ec_ms_cm',          type: 'number', unit: 'mS/cm' },
+            { name: 'water_temp_c',      type: 'number', unit: '°C'    },
+            { name: 'dissolved_o2_ppm',  type: 'number', unit: 'ppm'   },
+            { name: 'water_level_cm',    type: 'number', unit: 'cm'    },
+          ],
+        },
+        {
+          id: 'soil',
+          name: 'Soil Monitoring',
+          description: 'Soil moisture, temperature, pH and electrical conductivity.',
+          icon: '🌱',
+          fields: [
+            { name: 'soil_moisture_pct', type: 'number', unit: '%'    },
+            { name: 'soil_temp_c',       type: 'number', unit: '°C'   },
+            { name: 'soil_ph',           type: 'number', unit: ''     },
+            { name: 'soil_ec_ds_m',      type: 'number', unit: 'dS/m' },
+          ],
+        },
+        {
+          id: 'energy',
+          name: 'Energy Monitor',
+          description: 'Voltage, current, power draw and cumulative energy.',
+          icon: '⚡',
+          fields: [
+            { name: 'voltage_v',    type: 'number', unit: 'V'   },
+            { name: 'current_a',    type: 'number', unit: 'A'   },
+            { name: 'power_w',      type: 'number', unit: 'W'   },
+            { name: 'energy_kwh',   type: 'number', unit: 'kWh' },
+            { name: 'power_factor', type: 'number', unit: ''    },
+          ],
+        },
+        {
+          id: 'irrigation',
+          name: 'Irrigation',
+          description: 'Flow rate, line pressure, valve state and tank level.',
+          icon: '🚿',
+          fields: [
+            { name: 'flow_rate_lpm',   type: 'number',  unit: 'L/min' },
+            { name: 'pressure_hpa',    type: 'number',  unit: 'hPa'   },
+            { name: 'valve_open',      type: 'boolean', unit: ''      },
+            { name: 'tank_level_pct',  type: 'number',  unit: '%'     },
+          ],
+        },
+        {
+          id: 'weather',
+          name: 'Weather Station',
+          description: 'Outdoor temperature, humidity, wind, rain and UV index.',
+          icon: '🌤️',
+          fields: [
+            { name: 'temperature_c',     type: 'number', unit: '°C'   },
+            { name: 'humidity_pct',      type: 'number', unit: '%'    },
+            { name: 'wind_speed_ms',     type: 'number', unit: 'm/s'  },
+            { name: 'rain_mm',           type: 'number', unit: 'mm'   },
+            { name: 'uv_index',          type: 'number', unit: ''     },
+            { name: 'solar_rad_wm2',     type: 'number', unit: 'W/m²' },
+          ],
+        },
+        {
+          id: 'co2_enrichment',
+          name: 'CO₂ Enrichment',
+          description: 'CO₂ injection monitoring with flow and tank pressure.',
+          icon: '🫧',
+          fields: [
+            { name: 'co2_ppm',           type: 'number', unit: 'ppm'  },
+            { name: 'setpoint_ppm',      type: 'number', unit: 'ppm'  },
+            { name: 'injection_active',  type: 'boolean',unit: ''     },
+            { name: 'tank_pressure_bar', type: 'number', unit: 'bar'  },
+            { name: 'flow_lpm',          type: 'number', unit: 'L/min'},
+          ],
+        },
+        {
+          id: 'custom',
+          name: 'Custom',
+          description: 'Define your own fields from scratch.',
+          icon: '✏️',
+          fields: [],
+          isCustom: true,
+        },
+      ];
+
+      // ─── Render template cards ───────────────────────────────────────────────
+      function renderTemplateGrid() {
+        const grid = document.getElementById('template-grid');
+        grid.innerHTML = TEMPLATES.map(t => `
+          <button type="button"
+                  onclick="selectTemplate('${t.id}')"
+                  class="template-card text-left rounded-2xl border p-4 transition hover:shadow-md focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  style="border-color: var(--border); background: var(--card);"
+                  data-id="${t.id}">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xl leading-none">${t.icon}</span>
+              <span class="text-sm font-semibold truncate">${t.name}</span>
+            </div>
+            <p class="text-xs leading-relaxed" style="color: var(--muted-foreground);">${t.description}</p>
+            ${!t.isCustom ? `<p class="mt-2 text-xs font-medium" style="color: var(--primary);">${t.fields.length} fields</p>` : ''}
+          </button>
+        `).join('');
+      }
+
+      // ─── Template selection ──────────────────────────────────────────────────
+      function selectTemplate(templateId) {
+        const t = TEMPLATES.find(t => t.id === templateId);
+        if (!t) return;
+
+        // Highlight selected card
+        document.querySelectorAll('.template-card').forEach(c => {
+          c.style.borderColor = 'var(--border)';
+          c.style.background = 'var(--card)';
+        });
+        const card = document.querySelector(`[data-id="${templateId}"]`);
+        if (card) {
+          card.style.borderColor = 'var(--primary)';
+          card.style.background = 'rgba(34,197,94,0.04)';
+        }
+
+        // Pre-fill form
+        document.getElementById('schema-name-input').value = t.isCustom ? '' : t.name.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        document.getElementById('schema-desc-input').value = t.isCustom ? '' : t.description;
+        document.getElementById('panel-title').textContent = t.isCustom ? 'Custom Schema' : t.name;
+
+        fieldRows = t.fields.map(f => ({ ...f }));
+        if (t.isCustom) fieldRows = [{ name: '', type: 'number', unit: '' }];
+        renderFields();
+
+        // Open panel
+        const panel = document.getElementById('create-schema-panel');
+        panel.classList.remove('hidden');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      function closePanel() {
+        document.getElementById('create-schema-panel').classList.add('hidden');
+        document.querySelectorAll('.template-card').forEach(c => {
+          c.style.borderColor = 'var(--border)';
+          c.style.background = 'var(--card)';
+        });
+      }
+
+      // ─── Field builder ───────────────────────────────────────────────────────
+      let fieldRows = [];
+
+      function renderFields() {
+        const container = document.getElementById('fields-container');
+        container.innerHTML = '';
+        if (!fieldRows.length) {
+          container.innerHTML = `<p class="text-xs py-2" style="color: var(--muted-foreground);">No fields yet — click "+ Add Field" to add one.</p>`;
+          return;
+        }
+        fieldRows.forEach((row, i) => {
+          const div = document.createElement('div');
+          div.className = 'grid gap-2 items-center';
+          div.style.gridTemplateColumns = '1fr 1fr auto auto auto';
+          div.innerHTML = `
+            <input type="text" placeholder="field_name" value="${row.name}"
+                   oninput="fieldRows[${i}].name = this.value"
+                   class="rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                   style="border-color: var(--input);" />
+            <input type="text" placeholder="unit (e.g. °C)" value="${row.unit}"
+                   oninput="fieldRows[${i}].unit = this.value"
+                   class="rounded-xl border px-3 py-2 text-sm focus:outline-none"
+                   style="border-color: var(--input);" />
+            <select onchange="fieldRows[${i}].type = this.value"
+                    class="rounded-xl border px-3 py-2 text-sm focus:outline-none"
+                    style="border-color: var(--input); background: var(--background);">
+              <option value="number"  ${row.type === 'number'  ? 'selected' : ''}>number</option>
+              <option value="boolean" ${row.type === 'boolean' ? 'selected' : ''}>boolean</option>
+              <option value="text"    ${row.type === 'text'    ? 'selected' : ''}>text</option>
+            </select>
+            <button type="button" onclick="moveField(${i}, -1)" ${i === 0 ? 'disabled' : ''}
+                    class="h-9 w-7 rounded-lg border flex items-center justify-center text-xs hover:bg-black/5 disabled:opacity-30 transition"
+                    style="border-color: var(--border);">↑</button>
+            <button type="button" onclick="removeField(${i})"
+                    class="h-9 w-7 rounded-lg border flex items-center justify-center text-xs hover:bg-red-50 transition"
+                    style="border-color: var(--border); color: var(--muted-foreground);">✕</button>
+          `;
+          container.appendChild(div);
+        });
+      }
+
+      function addField() {
+        fieldRows.push({ name: '', type: 'number', unit: '' });
+        renderFields();
+      }
+
+      function removeField(i) {
+        fieldRows.splice(i, 1);
+        renderFields();
+      }
+
+      function moveField(i, dir) {
+        const j = i + dir;
+        if (j < 0 || j >= fieldRows.length) return;
+        [fieldRows[i], fieldRows[j]] = [fieldRows[j], fieldRows[i]];
+        renderFields();
+      }
+
+      function submitSchema() {
+        const valid = fieldRows.filter(f => f.name.trim() !== '');
+        document.getElementById('fields-json-input').value = JSON.stringify(valid);
+        document.getElementById('schema-form').submit();
+      }
+
+      const SAVED_SCHEMAS = {};
+      const _rawSchemas = JSON.parse(document.getElementById('schemas-json').textContent);
+      _rawSchemas.forEach(function(s) {
+        SAVED_SCHEMAS[s.id] = { name: s.name, description: s.description || '', fields: s.fields };
+      });
+
+      document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.edit-schema-btn');
+        if (!btn) return;
+        const data = SAVED_SCHEMAS[btn.dataset.id];
+        if (data) editSchema(btn.dataset.id, data.name, data.description, data.fields);
+      });
+
+      function editSchema(id, name, description, fields) {
+        // Deselect any template card
+        document.querySelectorAll('.template-card').forEach(c => {
+          c.style.borderColor = 'var(--border)';
+          c.style.background = 'var(--card)';
+        });
+
+        document.getElementById('schema-name-input').value = name;
+        document.getElementById('schema-desc-input').value = description || '';
+        document.getElementById('panel-title').textContent = 'Edit Schema';
+
+        fieldRows = (fields || []).map(f => ({
+          name: f.name || '',
+          type: f.type || 'number',
+          unit: f.unit || '',
+        }));
+        if (!fieldRows.length) fieldRows = [{ name: '', type: 'number', unit: '' }];
+        renderFields();
+
+        const panel = document.getElementById('create-schema-panel');
+        panel.classList.remove('hidden');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      // ─── Init ────────────────────────────────────────────────────────────────
+      renderTemplateGrid();
+    </script>
+  </body>
+</html>

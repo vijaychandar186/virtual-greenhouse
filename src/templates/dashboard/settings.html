@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Settings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+  </head>
+  <body class="flex min-h-screen" style="background: var(--background); color: var(--foreground);">
+    {% set active = 'settings' %}
+    {% include 'layout/_sidebar.html' %}
+
+    <div class="main-shell flex-1 flex flex-col min-w-0 overflow-hidden">
+    <main class="flex-1 overflow-auto px-8 py-8 max-w-2xl">
+      <p class="text-xs uppercase tracking-widest mb-1" style="color: var(--muted-foreground);">Account</p>
+      <h1 class="text-2xl font-semibold mb-8">Settings</h1>
+
+      {% for msg in get_flashed_messages() %}
+      <div class="mb-4 rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary);">{{ msg }}</div>
+      {% endfor %}
+
+      <!-- Profile -->
+      <section class="rounded-2xl border p-6 mb-6 shadow-sm" style="border-color: var(--border); background: var(--card);">
+        <h2 class="text-base font-semibold mb-4">Profile</h2>
+        <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
+          <dt class="font-medium" style="color: var(--muted-foreground);">Username</dt>
+          <dd>{{ user.username }}</dd>
+          <dt class="font-medium" style="color: var(--muted-foreground);">Email</dt>
+          <dd>{{ user.email }}</dd>
+        </dl>
+      </section>
+
+      <!-- API Key -->
+      <section class="rounded-2xl border p-6 shadow-sm" style="border-color: var(--border); background: var(--card);">
+        <h2 class="text-base font-semibold mb-1">API Key</h2>
+        <p class="text-sm mb-4" style="color: var(--muted-foreground);">
+          Use this key to push sensor data to <code class="rounded px-1 py-0.5 text-xs" style="background: var(--secondary);">/api/ingest</code>.
+          Send it as the <code class="rounded px-1 py-0.5 text-xs" style="background: var(--secondary);">X-API-Key</code> header
+          or <code class="rounded px-1 py-0.5 text-xs" style="background: var(--secondary);">?api_key=</code> query param.
+          Data ingested with this key is automatically linked to your account.
+        </p>
+
+        <div class="flex items-center gap-2 mb-4">
+          <input id="api-key-input" type="password"
+                 value="{{ user.api_key }}"
+                 readonly
+                 class="flex-1 min-w-0 rounded-xl border px-3 py-2 text-sm font-mono focus:outline-none"
+                 style="border-color: var(--input); background: var(--secondary);" />
+          <button id="toggle-btn" onclick="toggleKey(this)" class="shrink-0 rounded-xl border px-3 py-2 text-xs font-medium hover:bg-black/5 transition"
+                  style="border-color: var(--border);">Show</button>
+          <button onclick="copyKey(this)" class="shrink-0 rounded-xl border px-3 py-2 text-xs font-medium hover:bg-black/5 transition"
+                  style="border-color: var(--border);">Copy</button>
+        </div>
+
+        <!-- Example usage -->
+        <div class="rounded-xl p-4 text-xs font-mono mb-4 overflow-x-auto"
+             style="background: var(--secondary); color: var(--muted-foreground);">
+          <p class="mb-1 font-semibold not-italic" style="color: var(--foreground);">Example — push a reading:</p>
+curl -X POST {{ request.host_url }}api/ingest \<br>
+&nbsp;&nbsp;-H "X-API-Key: {{ user.api_key }}" \<br>
+&nbsp;&nbsp;-H "Content-Type: application/json" \<br>
+&nbsp;&nbsp;-d '{"device_id":"my-sensor","schema":"climate_v1","data":{"temperature_c":24.5,"humidity_pct":65}}'
+        </div>
+
+        <form method="POST" action="{{ url_for('auth.rotate_api_key') }}"
+              onsubmit="return confirmSubmit(this, 'Rotate API Key', 'Rotate your API key? All devices using the old key will stop working.', {confirmLabel:'Rotate Key', confirmStyle:'background:var(--destructive,#dc2626);'})">
+          <button type="submit" class="rounded-xl border px-4 py-2 text-sm font-medium hover:bg-red-50 transition"
+                  style="border-color: var(--border); color: var(--destructive, #dc2626);">
+            Rotate Key
+          </button>
+        </form>
+      </section>
+    </main>
+
+    <script>
+      function toggleKey(btn) {
+        const inp = document.getElementById('api-key-input');
+        const showing = inp.type === 'password';
+        inp.type = showing ? 'text' : 'password';
+        btn.textContent = showing ? 'Hide' : 'Show';
+      }
+      function copyKey(btn) {
+        const inp = document.getElementById('api-key-input');
+        navigator.clipboard.writeText(inp.value).then(() => {
+          btn.textContent = 'Copied!';
+          setTimeout(() => btn.textContent = 'Copy', 1500);
+        });
+      }
+    </script>
+    {% include 'layout/_modal.html' %}
+    </div>
+  </body>
+</html>

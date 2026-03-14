@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alerts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+  </head>
+  <body class="flex min-h-screen" style="background: var(--background); color: var(--foreground);">
+    {% set active = 'notifications' %}
+    {% include 'layout/_sidebar.html' %}
+
+    <div class="main-shell flex-1 flex flex-col min-w-0 overflow-hidden">
+    <main class="flex-1 overflow-auto px-8 py-8">
+
+      {% for message in get_flashed_messages() %}
+      <div class="mb-4 rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary);">{{ message }}</div>
+      {% endfor %}
+
+      <div class="mb-8 flex items-center justify-between">
+        <div>
+          <p class="text-xs uppercase tracking-[0.2em]" style="color: var(--muted-foreground);">Monitoring</p>
+          <h1 class="text-2xl font-semibold">Alert Rules</h1>
+        </div>
+        <button onclick="document.getElementById('create-rule-panel').classList.toggle('hidden')"
+                class="rounded-full px-4 py-2 text-sm font-semibold text-white shadow"
+                style="background: var(--primary);">+ New Rule</button>
+      </div>
+
+      <!-- Create rule panel -->
+      <div id="create-rule-panel" class="hidden mb-8">
+        <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card);">
+          <h2 class="text-base font-semibold mb-1">New notification rule</h2>
+          <p class="text-sm mb-5" style="color: var(--muted-foreground);">
+            Trigger an alert when a sensor field crosses a threshold. Evaluated on every data ingest.
+          </p>
+          <form action="{{ url_for('sensors.create_notification_rule') }}" method="POST"
+                class="grid gap-4 md:grid-cols-3">
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Schema</label>
+              <select id="rule-schema-select" name="schema_id" onchange="populateRuleFields(this)"
+                      class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      style="border-color: var(--input); background: var(--background);">
+                <option value="">— any schema —</option>
+                {% for s in schemas %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Field *</label>
+              <div class="flex gap-2">
+                <select id="rule-field-select" onchange="syncFieldInput(this)"
+                        class="flex-1 rounded-xl border px-3 py-2.5 text-sm focus:outline-none"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="">— or type below —</option>
+                </select>
+              </div>
+              <input type="text" id="rule-field-input" name="field_name" required
+                     placeholder="e.g. temperature_c"
+                     class="w-full mt-1 rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                     style="border-color: var(--input);" />
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Greenhouse (optional)</label>
+              <select name="greenhouse_id"
+                      class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      style="border-color: var(--input); background: var(--background);">
+                <option value="">— all greenhouses —</option>
+                {% for g in greenhouses %}
+                <option value="{{ g.id }}">{{ g.greenhouse_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Condition</label>
+              <select name="operator"
+                      class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      style="border-color: var(--input); background: var(--background);">
+                <option value="gt">&gt; greater than</option>
+                <option value="gte">&ge; greater or equal</option>
+                <option value="lt">&lt; less than</option>
+                <option value="lte">&le; less or equal</option>
+                <option value="eq">= equal to</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Threshold *</label>
+              <input type="number" name="threshold" step="any" required placeholder="e.g. 35"
+                     class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                     style="border-color: var(--input);" />
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Message (optional)</label>
+              <input type="text" name="message" placeholder="e.g. Temperature too high!"
+                     class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                     style="border-color: var(--input);" />
+            </div>
+            <div class="md:col-span-3 flex gap-3">
+              <button type="submit" class="rounded-full px-5 py-2 text-sm font-semibold text-white shadow"
+                      style="background: var(--primary);">Create Rule</button>
+              <button type="button" onclick="document.getElementById('create-rule-panel').classList.add('hidden')"
+                      class="rounded-full border px-5 py-2 text-sm font-semibold"
+                      style="border-color: var(--border);">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Edit rule panel -->
+      <div id="edit-rule-panel" class="hidden mb-8">
+        <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card);">
+          <h2 class="text-base font-semibold mb-1">Edit notification rule</h2>
+          <p class="text-sm mb-5" style="color: var(--muted-foreground);">
+            Update the trigger condition for this rule.
+          </p>
+          <form id="edit-rule-form" method="POST" class="grid gap-4 md:grid-cols-3">
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Schema</label>
+              <select id="edit-rule-schema-select" name="schema_id" onchange="populateEditRuleFields(this)"
+                      class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      style="border-color: var(--input); background: var(--background);">
+                <option value="">— any schema —</option>
+                {% for s in schemas %}
+                <option value="{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Field *</label>
+              <div class="flex gap-2">
+                <select id="edit-rule-field-select" onchange="syncEditFieldInput(this)"
+                        class="flex-1 rounded-xl border px-3 py-2.5 text-sm focus:outline-none"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="">— or type below —</option>
+                </select>
+              </div>
+              <input type="text" id="edit-rule-field-input" name="field_name" required
+                     placeholder="e.g. temperature_c"
+                     class="w-full mt-1 rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                     style="border-color: var(--input);" />
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Greenhouse (optional)</label>
+              <select id="edit-rule-greenhouse" name="greenhouse_id"
+                      class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      style="border-color: var(--input); background: var(--background);">
+                <option value="">— all greenhouses —</option>
+                {% for g in greenhouses %}
+                <option value="{{ g.id }}">{{ g.greenhouse_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Condition</label>
+              <select id="edit-rule-operator" name="operator"
+                      class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      style="border-color: var(--input); background: var(--background);">
+                <option value="gt">&gt; greater than</option>
+                <option value="gte">&ge; greater or equal</option>
+                <option value="lt">&lt; less than</option>
+                <option value="lte">&le; less or equal</option>
+                <option value="eq">= equal to</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Threshold *</label>
+              <input type="number" id="edit-rule-threshold" name="threshold" step="any" required placeholder="e.g. 35"
+                     class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                     style="border-color: var(--input);" />
+            </div>
+            <div>
+              <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Message (optional)</label>
+              <input type="text" id="edit-rule-message" name="message" placeholder="e.g. Temperature too high!"
+                     class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                     style="border-color: var(--input);" />
+            </div>
+            <div class="md:col-span-3 flex gap-3">
+              <button type="submit" class="rounded-full px-5 py-2 text-sm font-semibold text-white shadow"
+                      style="background: var(--primary);">Save Changes</button>
+              <button type="button" onclick="document.getElementById('edit-rule-panel').classList.add('hidden')"
+                      class="rounded-full border px-5 py-2 text-sm font-semibold"
+                      style="border-color: var(--border);">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="grid gap-8 lg:grid-cols-3">
+        <!-- Rules list -->
+        <div class="lg:col-span-2">
+          <h2 class="text-base font-semibold mb-4">Active Rules</h2>
+          {% if rules %}
+          <div class="space-y-3">
+            {% for rule in rules %}
+            <div class="rounded-2xl border p-4 flex items-center gap-4" style="border-color: var(--border); background: var(--card);">
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-semibold">
+                  <span style="color: var(--primary);">{{ rule.field_name }}</span>
+                  <span class="mx-1" style="color: var(--muted-foreground);">
+                    {% if rule.operator == 'gt' %}&gt;
+                    {% elif rule.operator == 'gte' %}&ge;
+                    {% elif rule.operator == 'lt' %}&lt;
+                    {% elif rule.operator == 'lte' %}&le;
+                    {% else %}={% endif %}
+                  </span>
+                  <span>{{ rule.threshold }}</span>
+                </p>
+                <p class="text-xs mt-0.5" style="color: var(--muted-foreground);">
+                  {% if rule.greenhouse_name %}{{ rule.greenhouse_name }}{% else %}All greenhouses{% endif %}
+                  {% if rule.schema_name %} &middot; {{ rule.schema_name }}{% endif %}
+                  {% if rule.message %} &middot; {{ rule.message }}{% endif %}
+                </p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button class="rounded-full border px-3 py-1 text-xs font-medium transition hover:bg-black/5 edit-rule-btn"
+                        style="border-color: var(--border);"
+                        data-id="{{ rule.id }}"
+                        data-schema="{{ rule.schema_id or '' }}"
+                        data-field="{{ rule.field_name }}"
+                        data-greenhouse="{{ rule.greenhouse_id or '' }}"
+                        data-operator="{{ rule.operator }}"
+                        data-threshold="{{ rule.threshold }}"
+                        data-message="{{ rule.message or '' }}">Edit</button>
+                <form action="{{ url_for('sensors.toggle_notification_rule', rule_id=rule.id) }}" method="POST">
+                  <button class="rounded-full border px-3 py-1 text-xs font-medium transition hover:bg-black/5"
+                          style="border-color: var(--border);">
+                    {{ 'Enabled' if rule.enabled else 'Disabled' }}
+                  </button>
+                </form>
+                <form action="{{ url_for('sensors.delete_notification_rule', rule_id=rule.id) }}" method="POST"
+                      onsubmit="return confirmSubmit(this, 'Delete Rule', 'Are you sure you want to delete this notification rule?', {confirmLabel:'Delete', confirmStyle:'background:var(--destructive,#dc2626);'})">
+                  <button class="rounded-full border px-2 py-1 text-xs hover:bg-red-50 transition"
+                          style="border-color: var(--border); color: var(--muted-foreground);">✕</button>
+                </form>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="rounded-2xl border p-8 text-center" style="border-color: var(--border); background: var(--card);">
+            <p class="text-sm" style="color: var(--muted-foreground);">No rules yet. Create one to get notified when a value crosses a threshold.</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Recent alerts sidebar -->
+        <div>
+          <h2 class="text-base font-semibold mb-4">Recent Alerts</h2>
+          {% if recent_alerts %}
+          <div class="space-y-2">
+            {% for alert in recent_alerts %}
+            <div class="rounded-xl border p-3 alert-item {{ 'opacity-50' if alert.acknowledged else 'alert-item--unacked' }}">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold">
+                    {{ alert.greenhouse_name or 'Global' }} &middot; {{ alert.field_name }}
+                  </p>
+                  <p class="text-xs mt-0.5" style="color: var(--muted-foreground);">
+                    Got <strong>{{ alert.value }}</strong>
+                    (rule: {% if alert.operator == 'gt' %}&gt;{% elif alert.operator == 'gte' %}&ge;{% elif alert.operator == 'lt' %}&lt;{% elif alert.operator == 'lte' %}&le;{% else %}={% endif %}
+                    {{ alert.threshold }})
+                  </p>
+                  {% if alert.message %}
+                  <p class="text-xs mt-0.5" style="color: var(--muted-foreground);">{{ alert.message }}</p>
+                  {% endif %}
+                  <p class="text-xs mt-1" style="color: var(--muted-foreground);">{{ alert.triggered_at[:16].replace('T', ' ') if alert.triggered_at else '' }}</p>
+                </div>
+                {% if not alert.acknowledged %}
+                <form action="{{ url_for('sensors.ack_alert', alert_id=alert.id) }}" method="POST">
+                  <button class="text-xs rounded border px-2 py-0.5 hover:bg-black/5 transition shrink-0"
+                          style="border-color: var(--border); color: var(--muted-foreground);">Ack</button>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="rounded-2xl border p-6 text-center" style="border-color: var(--border); background: var(--card);">
+            <p class="text-sm" style="color: var(--muted-foreground);">No alerts triggered yet.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </main>
+    </div>
+
+    <script id="schemas-json" type="application/json">{{ schemas | tojson }}</script>
+    <script>
+      const SCHEMAS = JSON.parse(document.getElementById('schemas-json').textContent);
+
+      function populateRuleFields(select) {
+        const schemaId = parseInt(select.value);
+        const fieldSelect = document.getElementById('rule-field-select');
+        fieldSelect.innerHTML = '<option value="">— or type below —</option>';
+        if (!schemaId) return;
+        const schema = SCHEMAS.find(s => s.id === schemaId);
+        if (!schema) return;
+        schema.fields.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.name;
+          opt.textContent = f.name + (f.unit ? ' (' + f.unit + ')' : '');
+          fieldSelect.appendChild(opt);
+        });
+      }
+
+      function syncFieldInput(select) {
+        const input = document.getElementById('rule-field-input');
+        if (select.value) input.value = select.value;
+      }
+
+      function populateEditRuleFields(select) {
+        const schemaId = parseInt(select.value);
+        const fieldSelect = document.getElementById('edit-rule-field-select');
+        fieldSelect.innerHTML = '<option value="">— or type below —</option>';
+        if (!schemaId) return;
+        const schema = SCHEMAS.find(s => s.id === schemaId);
+        if (!schema) return;
+        schema.fields.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.name;
+          opt.textContent = f.name + (f.unit ? ' (' + f.unit + ')' : '');
+          fieldSelect.appendChild(opt);
+        });
+      }
+
+      function syncEditFieldInput(select) {
+        const input = document.getElementById('edit-rule-field-input');
+        if (select.value) input.value = select.value;
+      }
+
+      document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.edit-rule-btn');
+        if (!btn) return;
+        openEditRule(btn.dataset.id, btn.dataset.schema, btn.dataset.field,
+                     btn.dataset.greenhouse, btn.dataset.operator,
+                     btn.dataset.threshold, btn.dataset.message);
+      });
+
+      function openEditRule(ruleId, schemaId, fieldName, greenhouseId, operator, threshold, message) {
+        const form = document.getElementById('edit-rule-form');
+        form.action = '/notifications/' + ruleId + '/edit';
+
+        const schemaSelect = document.getElementById('edit-rule-schema-select');
+        schemaSelect.value = schemaId || '';
+        populateEditRuleFields(schemaSelect);
+
+        document.getElementById('edit-rule-field-input').value = fieldName || '';
+        document.getElementById('edit-rule-greenhouse').value = greenhouseId || '';
+        document.getElementById('edit-rule-operator').value = operator || 'gt';
+        document.getElementById('edit-rule-threshold').value = threshold;
+        document.getElementById('edit-rule-message').value = message || '';
+
+        document.getElementById('edit-rule-panel').classList.remove('hidden');
+        document.getElementById('create-rule-panel').classList.add('hidden');
+        document.getElementById('edit-rule-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    </script>
+    {% include 'layout/_modal.html' %}
+  </body>
+</html>

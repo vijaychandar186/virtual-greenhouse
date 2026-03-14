@@ -1,0 +1,274 @@
+<!-- Sidebar — include after setting {% set active = 'page_name' %} -->
+
+<!-- Mobile top bar (hidden on md+) -->
+<div id="mobile-topbar"
+     class="fixed top-0 left-0 right-0 z-40 flex items-center gap-2 px-3 border-b"
+     style="height:52px; background: var(--card); border-color: var(--border);">
+  <button id="mobile-sidebar-open"
+          class="h-8 w-8 rounded-md flex items-center justify-center hover:bg-black/5 transition"
+          aria-label="Open sidebar">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted-foreground);">
+      <rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>
+    </svg>
+  </button>
+  <span class="text-sm font-semibold tracking-wide">Virtual Greenhouse</span>
+</div>
+
+<!-- Mobile backdrop -->
+<div id="sidebar-backdrop"
+     class="fixed inset-0 z-40 bg-black/40 transition-opacity duration-200"
+     style="display:none; opacity:0;"></div>
+
+<!-- Sidebar -->
+<aside id="sidebar"
+       class="sidebar-root group/sidebar flex flex-col h-screen shrink-0 transition-all duration-200 ease-linear z-50 border-r"
+       style="border-color: var(--border); background: var(--card);">
+
+  <!-- Header -->
+  <div class="flex items-center gap-2 px-2 py-3 border-b" style="border-color: var(--border); height: 52px;">
+    <button id="sidebar-toggle"
+            class="h-8 w-8 rounded-md flex items-center justify-center shrink-0 hover:bg-black/5 transition"
+            title="Toggle sidebar" aria-label="Toggle sidebar">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted-foreground);">
+        <rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>
+      </svg>
+    </button>
+    <span class="sidebar-label text-sm font-semibold tracking-wide truncate">Virtual Greenhouse</span>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 overflow-y-auto overflow-x-hidden py-2 px-2">
+    <ul class="flex flex-col gap-0.5">
+
+      <!-- Dashboard -->
+      <li>
+        <a href="{{ url_for('main.dashboard') }}"
+           class="sidebar-btn group flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition
+                  {% if active == 'dashboard' %}sidebar-active font-medium{% endif %}"
+           title="Dashboard">
+          <svg class="shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/>
+            <rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>
+          </svg>
+          <span class="sidebar-label truncate">Dashboard</span>
+        </a>
+      </li>
+
+      <!-- Overview (Charts) -->
+      <li>
+        <a href="{{ url_for('main.overview') }}"
+           class="sidebar-btn group flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition
+                  {% if active == 'overview' %}sidebar-active font-medium{% endif %}"
+           title="Overview">
+          <svg class="shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/>
+            <line x1="6" x2="6" y1="20" y2="14"/><line x1="2" x2="22" y1="20" y2="20"/>
+          </svg>
+          <span class="sidebar-label truncate">Overview</span>
+        </a>
+      </li>
+
+      <li class="my-1"><hr style="border-color: var(--border);"></li>
+
+      <!-- Greenhouses -->
+      <li>
+        <a href="{{ url_for('greenhouse.existing') }}"
+           class="sidebar-btn group flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition
+                  {% if active == 'greenhouses' %}sidebar-active font-medium{% endif %}"
+           title="Greenhouses">
+          <svg class="shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22V12"/><path d="M5 12H2a10 10 0 0 0 20 0h-3"/>
+            <path d="M8 6h.01"/><path d="M16 6h.01"/>
+            <path d="M12 6h.01"/><path d="M12 3a4 4 0 0 0-4 4h8a4 4 0 0 0-4-4z"/>
+          </svg>
+          <span class="sidebar-label truncate">Greenhouses</span>
+        </a>
+      </li>
+
+      <!-- Data -->
+      <li>
+        <a href="{{ url_for('sensors.sensor_status') }}"
+           class="sidebar-btn group flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition
+                  {% if active == 'sensors' %}sidebar-active font-medium{% endif %}"
+           title="Data">
+          <svg class="shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>
+          </svg>
+          <span class="sidebar-label truncate">Data</span>
+        </a>
+      </li>
+
+      <!-- Alerts -->
+      <li>
+        <a href="{{ url_for('sensors.notifications') }}"
+           class="sidebar-btn group flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition
+                  {% if active == 'notifications' %}sidebar-active font-medium{% endif %}"
+           title="Alerts">
+          <svg class="shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+          </svg>
+          <span class="sidebar-label truncate">Alerts</span>
+        </a>
+      </li>
+
+    </ul>
+  </nav>
+
+  <!-- Footer: user button + popover flap -->
+  <div class="relative border-t px-2 py-2" style="border-color: var(--border);">
+
+    <!-- Popover flap (slides up from the button) -->
+    <div id="user-flap"
+         class="hidden absolute left-2 right-2 bottom-full mb-1 rounded-xl border shadow-lg overflow-hidden"
+         style="border-color: var(--border); background: var(--card);">
+      <a href="{{ url_for('auth.settings') }}"
+         class="flex items-center gap-2.5 px-3 py-2.5 text-sm transition hover:bg-black/5"
+         style="color: var(--foreground);">
+        <svg class="shrink-0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted-foreground);">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        <span class="sidebar-label">Settings</span>
+        <!-- always show in collapsed mode via title tooltip -->
+      </a>
+      <div class="mx-3 border-t" style="border-color: var(--border);"></div>
+      <a href="{{ url_for('auth.logout') }}"
+         class="flex items-center gap-2.5 px-3 py-2.5 text-sm transition hover:bg-red-50"
+         style="color: var(--muted-foreground);">
+        <svg class="shrink-0" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>
+        </svg>
+        <span class="sidebar-label">Log out</span>
+      </a>
+    </div>
+
+    <!-- User button -->
+    <button id="user-btn"
+            class="sidebar-btn w-full flex items-center gap-2.5 rounded-md px-2 py-2 text-sm transition"
+            onclick="toggleUserFlap()" title="{{ session.username }}">
+      <!-- avatar circle -->
+      <span class="shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold text-white"
+            style="background: var(--primary);">{{ session.username[0].upper() }}</span>
+      <span class="sidebar-label truncate text-sm font-medium">{{ session.username }}</span>
+    </button>
+  </div>
+</aside>
+
+<style>
+  :root { --sw: 14rem; }
+  .sidebar-root { width: var(--sw); }
+  .sidebar-btn { color: var(--foreground); }
+  .sidebar-btn:hover { background: rgba(0,0,0,0.05); }
+  .sidebar-active { background: rgba(0,0,0,0.07); }
+
+  /* Collapsed state (desktop only) */
+  body.sidebar-collapsed { --sw: 3rem; }
+  body.sidebar-collapsed .sidebar-label { display: none; }
+  body.sidebar-collapsed #sidebar { width: 3rem; }
+  body.sidebar-collapsed .sidebar-btn { justify-content: center; }
+
+  /* Smooth transition on the label */
+  .sidebar-label { transition: opacity 150ms ease; }
+  body.sidebar-collapsed .sidebar-label { opacity: 0; width: 0; overflow: hidden; }
+
+  /* ── Mobile: drawer behaviour ── */
+  @media (max-width: 767px) {
+    /* Push main content below the fixed top bar */
+    .main-shell { padding-top: 52px; }
+
+    /* Sidebar becomes a fixed off-screen drawer */
+    #sidebar {
+      position: fixed !important;
+      top: 0; left: 0; bottom: 0;
+      width: 18rem !important;
+      transform: translateX(-100%);
+      transition: transform 0.2s ease;
+      z-index: 50;
+    }
+    #sidebar.mobile-open {
+      transform: translateX(0);
+    }
+
+    /* Hide the desktop toggle, show the mobile top bar */
+    #sidebar-toggle { display: none; }
+    #mobile-topbar { display: flex; }
+
+    /* Desktop collapse class has no effect on mobile */
+    body.sidebar-collapsed #sidebar { width: 18rem !important; transform: translateX(-100%); }
+    body.sidebar-collapsed #sidebar.mobile-open { transform: translateX(0); }
+    body.sidebar-collapsed .sidebar-label { display: revert; opacity: 1; width: auto; overflow: visible; }
+    body.sidebar-collapsed .sidebar-btn { justify-content: flex-start; }
+  }
+
+  @media (min-width: 768px) {
+    /* Desktop: sidebar is in normal flow, sticky */
+    #sidebar { position: sticky; top: 0; height: 100vh; }
+    #mobile-topbar { display: none !important; }
+    #sidebar-backdrop { display: none !important; }
+  }
+</style>
+
+<script>
+  (function() {
+    const STORAGE_KEY = 'sidebar_collapsed';
+    const sidebar    = document.getElementById('sidebar');
+    const backdrop   = document.getElementById('sidebar-backdrop');
+    const toggleBtn  = document.getElementById('sidebar-toggle');
+    const mobileOpen = document.getElementById('mobile-sidebar-open');
+
+    // ── helpers ──────────────────────────────────────────────
+    function isMobile() { return window.innerWidth < 768; }
+
+    function openMobile() {
+      sidebar.classList.add('mobile-open');
+      backdrop.style.display = 'block';
+      // small delay so the opacity transition fires
+      requestAnimationFrame(() => { backdrop.style.opacity = '1'; });
+    }
+
+    function closeMobile() {
+      sidebar.classList.remove('mobile-open');
+      backdrop.style.opacity = '0';
+      setTimeout(() => { backdrop.style.display = 'none'; }, 200);
+      document.getElementById('user-flap').classList.add('hidden');
+    }
+
+    // ── desktop collapse ──────────────────────────────────────
+    if (localStorage.getItem(STORAGE_KEY) === '1') {
+      document.body.classList.add('sidebar-collapsed');
+    }
+
+    toggleBtn.addEventListener('click', () => {
+      if (isMobile()) { openMobile(); return; }
+      const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
+      localStorage.setItem(STORAGE_KEY, isCollapsed ? '1' : '0');
+      document.getElementById('user-flap').classList.add('hidden');
+    });
+
+    // ── mobile open ───────────────────────────────────────────
+    mobileOpen.addEventListener('click', openMobile);
+
+    // ── backdrop / escape closes drawer ───────────────────────
+    backdrop.addEventListener('click', closeMobile);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && sidebar.classList.contains('mobile-open')) closeMobile();
+    });
+
+    // ── User flap ─────────────────────────────────────────────
+    window.toggleUserFlap = function() {
+      document.getElementById('user-flap').classList.toggle('hidden');
+    };
+
+    document.addEventListener('click', function(e) {
+      const flap    = document.getElementById('user-flap');
+      const userBtn = document.getElementById('user-btn');
+      if (!flap.classList.contains('hidden') &&
+          !flap.contains(e.target) &&
+          !userBtn.contains(e.target)) {
+        flap.classList.add('hidden');
+      }
+    });
+  })();
+</script>
