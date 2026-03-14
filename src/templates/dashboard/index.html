@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+  </head>
+  <body class="flex min-h-screen" style="background: var(--background); color: var(--foreground);">
+    {% set active = 'dashboard' %}
+    {% include 'layout/_sidebar.html' %}
+
+    <div class="main-shell flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main class="flex-1 overflow-auto px-8 py-8">
+
+        {% for message in get_flashed_messages() %}
+        <div class="mb-4 rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary);">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Header -->
+        <div class="mb-8">
+          <p class="text-xs uppercase tracking-[0.2em]" style="color: var(--muted-foreground);">Home</p>
+          <h1 class="text-2xl font-semibold">Welcome, {{ session.username }}</h1>
+        </div>
+
+        <!-- Onboarding banner -->
+        {% if needs_greenhouse %}
+        <div class="mb-8 rounded-2xl border px-6 py-5" style="border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.06);">
+          <p class="text-sm font-semibold mb-3" style="color: var(--primary);">Let's get you set up</p>
+          <ol class="flex flex-col gap-2 text-sm">
+            <li class="flex items-center gap-3">
+              <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold" style="border-color: var(--primary); color: var(--primary);">1</span>
+              <div><a href="{{ url_for('greenhouse.create_greenhouse') }}" class="font-semibold underline" style="color: var(--primary);">Create a greenhouse</a> — a physical location for your sensors</div>
+            </li>
+            <li class="flex items-center gap-3">
+              <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold" style="border-color: var(--primary); color: var(--primary);">2</span>
+              <div>Add sensors to it — define what each sensor measures (fields, units, types)</div>
+            </li>
+            <li class="flex items-center gap-3">
+              <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold" style="border-color: var(--primary); color: var(--primary);">3</span>
+              <div><a href="{{ url_for('auth.settings') }}" class="font-semibold underline" style="color: var(--primary);">Get your API key</a> — push sensor data via <code>/api/ingest</code></div>
+            </li>
+          </ol>
+        </div>
+        {% endif %}
+
+        <!-- Stats row -->
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <div class="rounded-2xl border p-5" style="border-color: var(--border); background: var(--card);">
+            <p class="text-xs uppercase tracking-widest mb-1" style="color: var(--muted-foreground);">Greenhouses</p>
+            <p class="text-3xl font-semibold">{{ greenhouses | length }}</p>
+          </div>
+          <div class="rounded-2xl border p-5" style="border-color: var(--border); background: var(--card);">
+            <p class="text-xs uppercase tracking-widest mb-1" style="color: var(--muted-foreground);">Sensors</p>
+            <p class="text-3xl font-semibold">{{ schemas | length }}</p>
+          </div>
+          <div class="rounded-2xl border p-5" style="border-color: var(--border); background: var(--card);">
+            <p class="text-xs uppercase tracking-widest mb-1" style="color: var(--muted-foreground);">Total Readings</p>
+            <p class="text-3xl font-semibold">{{ total_readings }}</p>
+          </div>
+          <div class="rounded-2xl border p-5" style="border-color: var(--border); background: var(--card);">
+            <p class="text-xs uppercase tracking-widest mb-1" style="color: var(--muted-foreground);">Devices</p>
+            <p class="text-3xl font-semibold">{{ total_devices }}</p>
+          </div>
+        </div>
+
+        <!-- Unacknowledged alerts -->
+        {% if unacked_alerts %}
+        <div class="mb-8">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold">Unacknowledged Alerts</h2>
+            <a href="{{ url_for('sensors.notifications') }}" class="text-xs font-semibold underline" style="color: var(--primary);">Manage all</a>
+          </div>
+          <div class="rounded-2xl border overflow-hidden" style="border-color: var(--border);">
+            {% for a in unacked_alerts %}
+            <div class="flex items-center gap-4 px-5 py-3 border-b last:border-b-0 text-sm" style="border-color: var(--border);">
+              <span class="h-2 w-2 rounded-full shrink-0" style="background: #dc2626;"></span>
+              <span class="font-medium truncate">{{ a.greenhouse_name or 'Global' }}</span>
+              <span style="color: var(--muted-foreground);" class="truncate">
+                <strong>{{ a.field_name }}</strong> {{ a.operator }} {{ a.threshold }} → got <strong>{{ a.value }}</strong>
+                {% if a.message %} — {{ a.message }}{% endif %}
+              </span>
+              <span class="ml-auto shrink-0 text-xs" style="color: var(--muted-foreground);">{{ a.triggered_at[:16].replace('T',' ') if a.triggered_at else '' }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Greenhouse latest readings -->
+        {% if greenhouses %}
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-semibold">Greenhouse Status</h2>
+            <a href="{{ url_for('greenhouse.existing') }}" class="text-xs font-semibold underline" style="color: var(--primary);">View all</a>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {% for gh in greenhouses %}
+            <div class="rounded-2xl border p-5" style="border-color: var(--border); background: var(--card);">
+              <p class="font-semibold mb-1">{{ gh.greenhouse_name }}</p>
+              {% if gh.latest %}
+              <p class="text-xs mb-3" style="color: var(--muted-foreground);">
+                {{ gh.latest.schema_name or '' }}
+                · {{ gh.latest.recorded_at[:16].replace('T',' ') if gh.latest.recorded_at else '' }}
+              </p>
+              {% if gh.latest.data %}
+              <div class="grid grid-cols-2 gap-1.5">
+                {% for k, v in gh.latest.data.items() | list %}{% if loop.index <= 4 %}
+                <div class="rounded-lg border px-2.5 py-1.5" style="border-color: var(--border);">
+                  <p class="text-xs truncate" style="color: var(--muted-foreground);">{{ k }}</p>
+                  <p class="text-sm font-semibold">{{ v }}</p>
+                </div>
+                {% endif %}{% endfor %}
+              </div>
+              {% endif %}
+              {% else %}
+              <p class="text-xs" style="color: var(--muted-foreground);">No readings yet.</p>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Virtual Greenhouse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+  </head>
+  <body class="min-h-screen" style="background: var(--background); color: var(--foreground);">
+    <div class="min-h-screen">
+      <header class="sticky top-0 z-10 border-b backdrop-blur" style="border-color: var(--border); background: var(--background);">
+        <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold tracking-wide">Virtual Greenhouse</span>
+          </div>
+          <div class="flex items-center gap-2 text-sm">
+            <a class="hidden sm:inline rounded-full px-3 py-1.5 transition hover:opacity-80" href="{{ url_for('auth.login') }}">Sign in</a>
+            <a class="rounded-full px-4 py-1.5 font-medium text-white shadow text-sm" href="{{ url_for('auth.login') }}" style="background: var(--primary);">Get Started</a>
+          </div>
+        </nav>
+      </header>
+
+      <main class="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <section class="grid items-center gap-8 md:grid-cols-2 md:gap-10">
+          <div class="space-y-5">
+            <p class="text-xs uppercase tracking-[0.2em]" style="color: var(--muted-foreground);">Virtual greenhouse, real readiness</p>
+            <h1 class="text-3xl font-semibold leading-tight sm:text-4xl md:text-5xl">
+              A live greenhouse dashboard for any sensor schema.
+            </h1>
+            <p class="text-base leading-relaxed" style="color: var(--muted-foreground);">
+              Define the fields you care about and stream real readings into a clean, focused dashboard. Every payload is stored and visualized.
+            </p>
+            <div class="flex flex-wrap gap-3">
+              <a class="rounded-full px-5 py-2.5 text-sm font-medium text-white shadow" href="{{ url_for('auth.login') }}" style="background: var(--primary);">Sign In</a>
+              <a class="rounded-full border px-5 py-2.5 text-sm font-medium" href="{{ url_for('auth.register') }}" style="border-color: var(--border);">Create Account</a>
+            </div>
+          </div>
+          <div class="rounded-3xl border p-6 shadow-sm" style="border-color: var(--border); background: var(--card); color: var(--card-foreground);">
+            <div class="grid gap-4">
+              <div class="rounded-2xl border p-4" style="border-color: var(--border); background: var(--secondary);">
+                <p class="text-xs uppercase tracking-widest" style="color: var(--muted-foreground);">Overview</p>
+                <p class="mt-2 text-lg font-semibold">Reliable feeds, flexible schemas.</p>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div class="rounded-2xl border p-4" style="border-color: var(--border);">
+                  <p class="text-xs" style="color: var(--muted-foreground);">Humidity</p>
+                  <p class="mt-2 text-2xl font-semibold">72%</p>
+                </div>
+                <div class="rounded-2xl border p-4" style="border-color: var(--border);">
+                  <p class="text-xs" style="color: var(--muted-foreground);">Temperature</p>
+                  <p class="mt-2 text-2xl font-semibold">29°C</p>
+                </div>
+              </div>
+              <div class="rounded-2xl border p-4" style="border-color: var(--border);">
+                <p class="text-xs" style="color: var(--muted-foreground);">Custom schemas</p>
+                <p class="mt-2 text-sm leading-relaxed" style="color: var(--muted-foreground);">
+                  Post any JSON shape and it becomes a tracked schema automatically.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mt-10 sm:mt-16 grid gap-4 sm:gap-6 md:grid-cols-3">
+          <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card); color: var(--card-foreground);">
+            <h3 class="text-lg font-semibold">Live Sensor Readings</h3>
+            <p class="mt-3 text-sm leading-relaxed" style="color: var(--muted-foreground);">
+              Track any fields you define, not just temperature and humidity.
+            </p>
+          </div>
+          <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card); color: var(--card-foreground);">
+            <h3 class="text-lg font-semibold">Greenhouse Profiles</h3>
+            <p class="mt-3 text-sm leading-relaxed" style="color: var(--muted-foreground);">
+              Store your greenhouse specs and quickly compare conditions across spaces.
+            </p>
+          </div>
+          <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card); color: var(--card-foreground);">
+            <h3 class="text-lg font-semibold">Schema Freedom</h3>
+            <p class="mt-3 text-sm leading-relaxed" style="color: var(--muted-foreground);">
+              Track temperature, humidity, pH, flow rate, energy use, or anything else.
+            </p>
+          </div>
+        </section>
+
+        <section class="mt-10 sm:mt-14 rounded-3xl border p-5 sm:p-6" style="border-color: var(--border); background: var(--card);">
+          <div class="grid gap-6 md:grid-cols-2">
+            <div>
+              <p class="text-xs uppercase tracking-[0.2em]" style="color: var(--muted-foreground);">Plug in your stack</p>
+              <h2 class="mt-2 text-xl sm:text-2xl font-semibold">Sensor integrations are ready today.</h2>
+              <p class="mt-3 text-sm leading-relaxed" style="color: var(--muted-foreground);">
+                Post sensor data from ESP32, Raspberry Pi, Home Assistant, or any cloud pipeline. We store any schema with a timestamp and source.
+              </p>
+              <div class="mt-4 text-sm space-y-0.5" style="color: var(--muted-foreground);">
+                <p><span class="font-semibold">Endpoint:</span> /api/ingest</p>
+                <p><span class="font-semibold">Auth:</span> X-API-Key header</p>
+                <p><span class="font-semibold">Fields:</span> use <span class="font-semibold">data</span> to send any shape</p>
+                <p><span class="font-semibold">Schema registry:</span> /api/schemas</p>
+              </div>
+            </div>
+            <div class="rounded-2xl border p-4 overflow-x-auto" style="border-color: var(--border); background: var(--secondary);">
+              <pre class="code-block text-xs whitespace-pre">curl -X POST http://localhost:5000/api/ingest \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: dev-sensor-token" \
+  -d '{
+    "device_id": "gh-1-main",
+    "greenhouse_id": 1,
+    "schema": "climate_v1",
+    "data": {
+      "temperature_c": 26.4,
+      "humidity_pct": 67.2,
+      "light_lux": 740,
+      "co2_ppm": 520
+    }
+  }'</pre>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="border-t" style="border-color: var(--border);">
+        <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-6 text-xs" style="color: var(--muted-foreground);">
+          <span>&copy; 2026 Virtual Greenhouse</span>
+          <span>Built for clean, calm monitoring.</span>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

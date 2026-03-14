@@ -1,0 +1,64 @@
+<!-- Reusable custom modal — include once per page -->
+<div id="custom-modal" class="fixed inset-0 z-50 hidden">
+  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm" onclick="closeModal()"></div>
+  <div class="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
+    <div class="rounded-2xl border shadow-xl w-full max-w-sm p-6 pointer-events-auto"
+         style="border-color: var(--border); background: var(--card);">
+      <h3 id="modal-title" class="text-base font-semibold mb-2"></h3>
+      <p id="modal-message" class="text-sm mb-6" style="color: var(--muted-foreground);"></p>
+      <div id="modal-actions" class="flex justify-end gap-3"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let _modalForm = null;
+
+  function showModal(title, message, {confirm: isConfirm = false, confirmLabel = 'Confirm', confirmStyle = ''} = {}) {
+    document.getElementById('modal-title').textContent = title;
+    document.getElementById('modal-message').textContent = message;
+    const actions = document.getElementById('modal-actions');
+
+    if (isConfirm) {
+      actions.innerHTML = `
+        <button onclick="closeModal()"
+                class="rounded-full border px-5 py-2 text-sm font-semibold transition hover:bg-black/5"
+                style="border-color: var(--border);">Cancel</button>
+        <button onclick="modalConfirm()"
+                class="rounded-full px-5 py-2 text-sm font-semibold text-white shadow transition"
+                style="${confirmStyle || 'background: var(--primary);'}">${confirmLabel}</button>`;
+    } else {
+      actions.innerHTML = `
+        <button onclick="closeModal()"
+                class="rounded-full px-5 py-2 text-sm font-semibold text-white shadow"
+                style="background: var(--primary);">OK</button>`;
+    }
+    document.getElementById('custom-modal').classList.remove('hidden');
+  }
+
+  function closeModal() {
+    document.getElementById('custom-modal').classList.add('hidden');
+    _modalForm = null;
+  }
+
+  function modalConfirm() {
+    const form = _modalForm;
+    closeModal();
+    if (form) form.submit();
+  }
+
+  /**
+   * Call from onsubmit: return confirmSubmit(this, 'Title', 'Message', opts)
+   * Prevents default form submit and shows the custom modal instead.
+   */
+  function confirmSubmit(form, title, message, opts) {
+    _modalForm = form;
+    showModal(title, message, {confirm: true, ...(opts || {})});
+    return false;
+  }
+
+  // Close on Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+  });
+</script>

@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ gh.greenhouse_name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+  </head>
+  <body class="flex min-h-screen" style="background: var(--background); color: var(--foreground);">
+    {% set active = 'greenhouses' %}
+    {% include 'layout/_sidebar.html' %}
+
+    <div class="main-shell flex-1 flex flex-col min-w-0 overflow-hidden">
+    <main class="flex-1 overflow-auto px-8 py-8">
+
+      {% for message in get_flashed_messages() %}
+      <div class="mb-4 rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary);">{{ message }}</div>
+      {% endfor %}
+
+      <!-- Breadcrumb + header -->
+      <div class="mb-8">
+        <p class="text-xs mb-1" style="color: var(--muted-foreground);">
+          <a href="{{ url_for('greenhouse.existing') }}" class="hover:underline">Greenhouses</a>
+          <span class="mx-1">›</span>
+          <span>{{ gh.greenhouse_name }}</span>
+        </p>
+        <div class="flex items-start justify-between">
+          <div>
+            <h1 class="text-2xl font-semibold">{{ gh.greenhouse_name }}</h1>
+            <p class="text-sm mt-0.5" style="color: var(--muted-foreground);">{{ gh.location }}</p>
+            {% if gh.description %}
+            <p class="text-sm mt-0.5" style="color: var(--muted-foreground);">{{ gh.description }}</p>
+            {% endif %}
+          </div>
+          <div class="flex gap-2 shrink-0 ml-4">
+            <a href="{{ url_for('greenhouse.edit_greenhouse', gh_id=gh.id) }}"
+               class="rounded-full border px-4 py-2 text-sm font-medium hover:bg-black/5 transition"
+               style="border-color: var(--border);">Edit</a>
+            <form action="{{ url_for('greenhouse.delete_greenhouse', gh_id=gh.id) }}" method="POST"
+                  onsubmit="return confirmSubmit(this, 'Delete Greenhouse', 'Delete \'{{ gh.greenhouse_name }}\'? All sensors, readings and rules will be removed permanently.', {confirmLabel:'Delete', confirmStyle:'background:var(--destructive,#dc2626);'})">
+              <button class="rounded-full border px-4 py-2 text-sm font-medium hover:bg-red-50 transition"
+                      style="border-color: var(--border); color: var(--destructive, #dc2626);">Delete</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           SENSORS
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <section class="mb-10">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-semibold">Sensors</h2>
+          <button onclick="toggleAddSensor()"
+                  class="rounded-full px-4 py-2 text-sm font-semibold text-white shadow"
+                  style="background: var(--primary);">+ Add Sensor</button>
+        </div>
+
+        <!-- Add sensor panel -->
+        <div id="add-sensor-panel" class="hidden mb-6">
+          <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card);">
+            <div class="flex items-start justify-between mb-1">
+              <h3 class="text-base font-semibold" id="sensor-panel-title">New Sensor</h3>
+              <button onclick="closeAddSensor()"
+                      class="h-6 w-6 rounded flex items-center justify-center hover:bg-black/5 transition text-sm"
+                      style="color: var(--muted-foreground);">✕</button>
+            </div>
+            <p class="text-sm mb-5" style="color: var(--muted-foreground);">
+              Pick a template or define custom fields, then save.
+            </p>
+
+            <!-- Template picker -->
+            <div class="mb-5">
+              <p class="text-xs uppercase tracking-widest mb-3" style="color: var(--muted-foreground);">Start from a template</p>
+              <div class="grid gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" id="sensor-template-grid"></div>
+            </div>
+
+            <form action="{{ url_for('greenhouse.create_greenhouse_sensor', gh_id=gh.id) }}" method="POST" id="sensor-form">
+              <div class="grid gap-4 md:grid-cols-2 mb-5">
+                <div>
+                  <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Sensor Name *</label>
+                  <input type="text" name="name" id="sensor-name-input" required
+                         placeholder="e.g. climate_monitor, soil_sensor"
+                         class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                         style="border-color: var(--input);" />
+                </div>
+                <div>
+                  <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Description</label>
+                  <input type="text" name="description" id="sensor-desc-input"
+                         placeholder="What does this sensor measure?"
+                         class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                         style="border-color: var(--input);" />
+                </div>
+              </div>
+
+              <div class="mb-5">
+                <div class="flex items-center justify-between mb-3">
+                  <label class="text-xs uppercase tracking-wide" style="color: var(--muted-foreground);">Fields</label>
+                  <button type="button" onclick="addSensorField()"
+                          class="rounded-full border px-3 py-1 text-xs font-medium hover:bg-black/5 transition"
+                          style="border-color: var(--border);">+ Add Field</button>
+                </div>
+                <div id="sensor-fields-container" class="space-y-2"></div>
+                <input type="hidden" name="fields_json" id="sensor-fields-json" value="[]" />
+              </div>
+
+              <div class="flex gap-3">
+                <button type="button" onclick="submitSensor()"
+                        class="rounded-full px-5 py-2 text-sm font-semibold text-white shadow"
+                        style="background: var(--primary);">Save Sensor</button>
+                <button type="button" onclick="closeAddSensor()"
+                        class="rounded-full border px-5 py-2 text-sm font-semibold"
+                        style="border-color: var(--border);">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Sensor list -->
+        {% if sensors %}
+        <div class="space-y-4">
+          {% for sensor in sensors %}
+          <div class="rounded-2xl border p-5" style="border-color: var(--border); background: var(--card);">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center gap-2 mb-1">
+                  <h3 class="text-base font-semibold">{{ sensor.name }}</h3>
+                  <span class="rounded-full border px-2.5 py-0.5 text-xs shrink-0" style="border-color: var(--border); color: var(--muted-foreground);">
+                    {{ sensor.fields|length }} field{{ 's' if sensor.fields|length != 1 }}
+                  </span>
+                </div>
+                {% if sensor.description %}
+                <p class="text-sm mb-2" style="color: var(--muted-foreground);">{{ sensor.description }}</p>
+                {% endif %}
+                {% if sensor.fields %}
+                <div class="flex flex-wrap gap-2 mt-2">
+                  {% for field in sensor.fields %}
+                  <span class="rounded-full border px-3 py-1 text-xs" style="border-color: var(--border);">
+                    <span class="font-medium">{{ field.name }}</span>
+                    <span style="color: var(--muted-foreground);">{{ ' · ' + field.type if field.type != 'number' else '' }}{% if field.unit %} · {{ field.unit }}{% endif %}</span>
+                  </span>
+                  {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-xs mt-1" style="color: var(--muted-foreground);">No fields defined — auto-discovered on first ingest.</p>
+                {% endif %}
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button class="rounded-lg border px-3 py-1 text-xs hover:bg-black/5 transition"
+                        style="border-color: var(--border); color: var(--muted-foreground);"
+                        onclick="editSensor({{ sensor.id }})">Edit</button>
+                <form action="{{ url_for('greenhouse.delete_greenhouse_sensor', gh_id=gh.id, schema_id=sensor.id) }}" method="POST"
+                      onsubmit="return confirmSubmit(this, 'Remove Sensor', 'Remove sensor \'{{ sensor.name }}\'? Existing readings are kept.', {confirmLabel:'Remove', confirmStyle:'background:var(--destructive,#dc2626);'})">
+                  <button class="rounded-lg border px-3 py-1 text-xs hover:bg-red-50 transition"
+                          style="border-color: var(--border); color: var(--muted-foreground);">Remove</button>
+                </form>
+              </div>
+            </div>
+
+            <!-- API snippet (full width) -->
+            <details class="mt-3">
+              <summary class="text-xs cursor-pointer select-none" style="color: var(--muted-foreground);">Show API example</summary>
+              <div class="mt-2 rounded-xl border overflow-x-auto" style="border-color: var(--border); background: var(--secondary);">
+                <div class="flex justify-end px-3 pt-2">
+                  <button onclick="copyApiSnippet(this)" class="text-xs px-2 py-0.5 rounded border transition hover:bg-black/10 shrink-0" style="border-color: var(--border); color: var(--muted-foreground);">Copy</button>
+                </div>
+                <div class="px-3 pb-3">
+                  <pre class="code-block text-xs whitespace-pre">curl -X POST /api/ingest \
+  -H "X-API-Key: &lt;your-api-key&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "my-device-01",
+    "greenhouse_id": {{ gh.id }},
+    "schema": "{{ sensor.name }}",
+    "data": {
+      {% for field in sensor.fields %}"{{ field.name }}": &lt;value&gt;{% if not loop.last %},
+      {% endif %}{% endfor %}
+
+    }
+  }'</pre>
+                </div>
+              </div>
+            </details>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="rounded-2xl border p-10 text-center" style="border-color: var(--border); background: var(--card);">
+          <p class="text-base font-semibold mb-1">No sensors yet</p>
+          <p class="text-sm mb-4" style="color: var(--muted-foreground);">Add a sensor to define what data this greenhouse tracks.</p>
+          <button onclick="toggleAddSensor()"
+                  class="rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow inline-block"
+                  style="background: var(--primary);">+ Add First Sensor</button>
+        </div>
+        {% endif %}
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           ALERT RULES
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <section class="mb-10">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-semibold">Alert Rules</h2>
+          {% if sensors %}
+          <button onclick="document.getElementById('add-rule-panel').classList.toggle('hidden')"
+                  class="rounded-full border px-4 py-2 text-sm font-medium hover:bg-black/5 transition"
+                  style="border-color: var(--border);">+ Add Rule</button>
+          {% endif %}
+        </div>
+
+        <!-- Add rule panel -->
+        <div id="add-rule-panel" class="hidden mb-6">
+          <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card);">
+            <h3 class="text-base font-semibold mb-1">New Alert Rule</h3>
+            <p class="text-sm mb-5" style="color: var(--muted-foreground);">Trigger an alert when a sensor field crosses a threshold.</p>
+            <form action="{{ url_for('sensors.create_notification_rule') }}" method="POST"
+                  class="grid gap-4 md:grid-cols-3">
+              <input type="hidden" name="greenhouse_id" value="{{ gh.id }}" />
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Sensor</label>
+                <select name="schema_id" id="rule-schema-select" onchange="populateRuleFields(this)"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="">— any sensor —</option>
+                  {% for s in sensors %}
+                  <option value="{{ s.id }}">{{ s.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Field *</label>
+                <select id="rule-field-select" onchange="document.getElementById('rule-field-input').value = this.value"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none mb-1"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="">— or type below —</option>
+                </select>
+                <input type="text" name="field_name" id="rule-field-input" required placeholder="e.g. temperature_c"
+                       class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                       style="border-color: var(--input);" />
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Condition</label>
+                <select name="operator"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="gt">&gt; greater than</option>
+                  <option value="gte">&ge; greater or equal</option>
+                  <option value="lt">&lt; less than</option>
+                  <option value="lte">&le; less or equal</option>
+                  <option value="eq">= equal to</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Threshold *</label>
+                <input type="number" name="threshold" step="any" required placeholder="e.g. 35"
+                       class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                       style="border-color: var(--input);" />
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Message (optional)</label>
+                <input type="text" name="message" placeholder="e.g. Temperature too high!"
+                       class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                       style="border-color: var(--input);" />
+              </div>
+              <div class="md:col-span-3 flex gap-3">
+                <button type="submit" class="rounded-full px-5 py-2 text-sm font-semibold text-white shadow"
+                        style="background: var(--primary);">Create Rule</button>
+                <button type="button" onclick="document.getElementById('add-rule-panel').classList.add('hidden')"
+                        class="rounded-full border px-5 py-2 text-sm font-semibold"
+                        style="border-color: var(--border);">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {% if rules %}
+        <div class="space-y-3">
+          {% for rule in rules %}
+          <div class="rounded-2xl border p-4 flex items-center gap-4" style="border-color: var(--border); background: var(--card);">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold">
+                <span style="color: var(--primary);">{{ rule.field_name }}</span>
+                <span class="mx-1" style="color: var(--muted-foreground);">
+                  {% if rule.operator == 'gt' %}&gt;
+                  {% elif rule.operator == 'gte' %}&ge;
+                  {% elif rule.operator == 'lt' %}&lt;
+                  {% elif rule.operator == 'lte' %}&le;
+                  {% else %}={% endif %}
+                </span>
+                <span>{{ rule.threshold }}</span>
+              </p>
+              <p class="text-xs mt-0.5" style="color: var(--muted-foreground);">
+                {% if rule.schema_name %}{{ rule.schema_name }} &middot; {% endif %}
+                {{ rule.message or 'No message' }}
+              </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <form action="{{ url_for('sensors.toggle_notification_rule', rule_id=rule.id) }}" method="POST">
+                <button class="rounded-full border px-3 py-1 text-xs font-medium transition hover:bg-black/5"
+                        style="border-color: var(--border);">{{ 'Enabled' if rule.enabled else 'Disabled' }}</button>
+              </form>
+              <form action="{{ url_for('sensors.delete_notification_rule', rule_id=rule.id) }}" method="POST"
+                    onsubmit="return confirmSubmit(this, 'Delete Rule', 'Delete this alert rule?', {confirmLabel:'Delete', confirmStyle:'background:var(--destructive,#dc2626);'})">
+                <button class="rounded-full border px-2 py-1 text-xs hover:bg-red-50 transition"
+                        style="border-color: var(--border); color: var(--muted-foreground);">✕</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="rounded-2xl border p-6 text-center" style="border-color: var(--border); background: var(--card);">
+          <p class="text-sm" style="color: var(--muted-foreground);">
+            {% if sensors %}No alert rules yet. Add a rule to get notified when values cross thresholds.{% else %}Add sensors first, then you can set up alert rules.{% endif %}
+          </p>
+        </div>
+        {% endif %}
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           RECENT READINGS
+      ═══════════════════════════════════════════════════════════════════════ -->
+      <section class="mb-10">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-semibold">Recent Readings</h2>
+          <a href="{{ url_for('sensors.sensor_status') }}?greenhouse_id={{ gh.id }}"
+             class="text-xs font-semibold underline" style="color: var(--primary);">View all data</a>
+        </div>
+        {% if readings %}
+        <div class="rounded-2xl border overflow-hidden" style="border-color: var(--border); background: var(--card);">
+          <table class="min-w-full text-left text-sm">
+            <thead class="border-b" style="border-color: var(--border); background: var(--secondary);">
+              <tr>
+                <th class="px-4 py-3 text-xs uppercase tracking-widest" style="color: var(--muted-foreground);">Time</th>
+                <th class="px-4 py-3 text-xs uppercase tracking-widest" style="color: var(--muted-foreground);">Sensor</th>
+                <th class="px-4 py-3 text-xs uppercase tracking-widest" style="color: var(--muted-foreground);">Device</th>
+                <th class="px-4 py-3 text-xs uppercase tracking-widest" style="color: var(--muted-foreground);">Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in readings %}
+              <tr class="border-b last:border-0 hover:bg-black/[0.02]" style="border-color: var(--border);">
+                <td class="px-4 py-3 text-xs whitespace-nowrap">{{ r.recorded_at[:16].replace('T',' ') if r.recorded_at else '—' }}</td>
+                <td class="px-4 py-3 text-xs">{{ r.schema_name or '—' }}</td>
+                <td class="px-4 py-3 text-xs">{{ r.device_id or '—' }}</td>
+                <td class="px-4 py-3">
+                  {% if r.data %}
+                  <div class="flex flex-wrap gap-x-4 gap-y-0.5">
+                    {% for k, v in r.data.items() | list %}{% if loop.index <= 6 %}
+                    <span class="text-xs"><span class="font-medium" style="color: var(--primary);">{{ k }}</span> = {{ v }}</span>
+                    {% endif %}{% endfor %}
+                    {% if r.data|length > 6 %}<span class="text-xs" style="color: var(--muted-foreground);">+{{ r.data|length - 6 }} more</span>{% endif %}
+                  </div>
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="rounded-2xl border p-8 text-center" style="border-color: var(--border); background: var(--card);">
+          <p class="text-sm" style="color: var(--muted-foreground);">No readings yet. Push data via the API using <code>/api/ingest</code> with <code>"greenhouse_id": {{ gh.id }}</code>.</p>
+        </div>
+        {% endif %}
+      </section>
+
+      <!-- ═══════════════════════════════════════════════════════════════════
+           DEVICES
+      ═══════════════════════════════════════════════════════════════════════ -->
+      {% if devices %}
+      <section class="mb-10">
+        <h2 class="text-base font-semibold mb-4">Connected Devices</h2>
+        <div class="flex flex-wrap gap-2">
+          {% for dev in devices %}
+          <div class="rounded-full border px-4 py-2 text-xs" style="border-color: var(--border); background: var(--card);">
+            <span class="font-medium">{{ dev.label or dev.device_id }}</span>
+            {% if dev.last_seen_at %}
+            <span class="ml-1.5" style="color: var(--muted-foreground);">last seen {{ dev.last_seen_at[:16].replace('T',' ') }}</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+    </main>
+    </div>
+
+    {% include 'layout/_modal.html' %}
+
+    <script id="sensors-json" type="application/json">{{ sensors | tojson }}</script>
+    <script>
+      // ─── Sensor template definitions ──────────────────────────────────────────
+      const SENSOR_TEMPLATES = [
+        { id: 'climate', name: 'Climate', icon: '🌡️',
+          fields: [{ name: 'temperature_c', type: 'number', unit: '°C' }, { name: 'humidity_pct', type: 'number', unit: '%' }, { name: 'co2_ppm', type: 'number', unit: 'ppm' }, { name: 'light_lux', type: 'number', unit: 'lux' }, { name: 'pressure_hpa', type: 'number', unit: 'hPa' }],
+          description: 'Temp, humidity, CO₂, light, pressure' },
+        { id: 'hydroponics', name: 'Hydroponics', icon: '💧',
+          fields: [{ name: 'ph', type: 'number', unit: '' }, { name: 'ec_ms_cm', type: 'number', unit: 'mS/cm' }, { name: 'water_temp_c', type: 'number', unit: '°C' }, { name: 'dissolved_o2_ppm', type: 'number', unit: 'ppm' }, { name: 'water_level_cm', type: 'number', unit: 'cm' }],
+          description: 'pH, EC, water temp, DO, level' },
+        { id: 'soil', name: 'Soil', icon: '🌱',
+          fields: [{ name: 'soil_moisture_pct', type: 'number', unit: '%' }, { name: 'soil_temp_c', type: 'number', unit: '°C' }, { name: 'soil_ph', type: 'number', unit: '' }, { name: 'soil_ec_ds_m', type: 'number', unit: 'dS/m' }],
+          description: 'Moisture, temp, pH, EC' },
+        { id: 'irrigation', name: 'Irrigation', icon: '🚿',
+          fields: [{ name: 'flow_rate_lpm', type: 'number', unit: 'L/min' }, { name: 'pressure_hpa', type: 'number', unit: 'hPa' }, { name: 'valve_open', type: 'boolean', unit: '' }, { name: 'tank_level_pct', type: 'number', unit: '%' }],
+          description: 'Flow, pressure, valve, tank' },
+        { id: 'energy', name: 'Energy', icon: '⚡',
+          fields: [{ name: 'voltage_v', type: 'number', unit: 'V' }, { name: 'current_a', type: 'number', unit: 'A' }, { name: 'power_w', type: 'number', unit: 'W' }, { name: 'energy_kwh', type: 'number', unit: 'kWh' }],
+          description: 'Voltage, current, power, energy' },
+        { id: 'weather', name: 'Weather', icon: '🌤️',
+          fields: [{ name: 'temperature_c', type: 'number', unit: '°C' }, { name: 'humidity_pct', type: 'number', unit: '%' }, { name: 'wind_speed_ms', type: 'number', unit: 'm/s' }, { name: 'rain_mm', type: 'number', unit: 'mm' }, { name: 'uv_index', type: 'number', unit: '' }],
+          description: 'Outdoor weather station' },
+        { id: 'co2', name: 'CO₂', icon: '🫧',
+          fields: [{ name: 'co2_ppm', type: 'number', unit: 'ppm' }, { name: 'setpoint_ppm', type: 'number', unit: 'ppm' }, { name: 'injection_active', type: 'boolean', unit: '' }, { name: 'tank_pressure_bar', type: 'number', unit: 'bar' }],
+          description: 'CO₂ enrichment monitoring' },
+        { id: 'custom', name: 'Custom', icon: '✏️', fields: [], description: 'Define your own fields', isCustom: true },
+      ];
+
+      function renderSensorTemplateGrid() {
+        const grid = document.getElementById('sensor-template-grid');
+        grid.innerHTML = SENSOR_TEMPLATES.map(t => `
+          <button type="button" onclick="selectSensorTemplate('${t.id}')"
+                  class="sensor-tpl-card text-left rounded-xl border p-3 transition hover:shadow-sm focus:outline-none"
+                  style="border-color: var(--border); background: var(--card);"
+                  data-id="${t.id}">
+            <div class="flex items-center gap-1.5 mb-1">
+              <span class="text-base leading-none">${t.icon}</span>
+              <span class="text-xs font-semibold truncate">${t.name}</span>
+            </div>
+            <p class="text-xs leading-snug" style="color: var(--muted-foreground);">${t.description}</p>
+          </button>
+        `).join('');
+      }
+
+      function selectSensorTemplate(templateId) {
+        const t = SENSOR_TEMPLATES.find(t => t.id === templateId);
+        if (!t) return;
+        document.querySelectorAll('.sensor-tpl-card').forEach(c => {
+          c.style.borderColor = 'var(--border)';
+          c.style.background = 'var(--card)';
+        });
+        const card = document.querySelector(`.sensor-tpl-card[data-id="${templateId}"]`);
+        if (card) { card.style.borderColor = 'var(--primary)'; card.style.background = 'rgba(34,197,94,0.04)'; }
+        document.getElementById('sensor-name-input').value = t.isCustom ? '' : t.id;
+        document.getElementById('sensor-desc-input').value = t.isCustom ? '' : t.description;
+        document.getElementById('sensor-panel-title').textContent = t.isCustom ? 'Custom Sensor' : t.name;
+        sensorFieldRows = t.fields.map(f => ({ ...f }));
+        if (t.isCustom) sensorFieldRows = [{ name: '', type: 'number', unit: '' }];
+        renderSensorFields();
+      }
+
+      // ─── Field builder ─────────────────────────────────────────────────────────
+      let sensorFieldRows = [];
+
+      function renderSensorFields() {
+        const container = document.getElementById('sensor-fields-container');
+        container.innerHTML = '';
+        if (!sensorFieldRows.length) {
+          container.innerHTML = `<p class="text-xs py-2" style="color: var(--muted-foreground);">No fields yet — click "+ Add Field" to add one.</p>`;
+          return;
+        }
+        sensorFieldRows.forEach((row, i) => {
+          const div = document.createElement('div');
+          div.className = 'grid gap-2 items-center';
+          div.style.gridTemplateColumns = '1fr 1fr auto auto auto';
+          div.innerHTML = `
+            <input type="text" placeholder="field_name" value="${row.name}"
+                   oninput="sensorFieldRows[${i}].name = this.value"
+                   class="rounded-xl border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                   style="border-color: var(--input);" />
+            <input type="text" placeholder="unit (e.g. °C)" value="${row.unit}"
+                   oninput="sensorFieldRows[${i}].unit = this.value"
+                   class="rounded-xl border px-3 py-2 text-sm focus:outline-none"
+                   style="border-color: var(--input);" />
+            <select onchange="sensorFieldRows[${i}].type = this.value"
+                    class="rounded-xl border px-3 py-2 text-sm focus:outline-none"
+                    style="border-color: var(--input); background: var(--background);">
+              <option value="number"  ${row.type === 'number'  ? 'selected' : ''}>number</option>
+              <option value="boolean" ${row.type === 'boolean' ? 'selected' : ''}>boolean</option>
+              <option value="text"    ${row.type === 'text'    ? 'selected' : ''}>text</option>
+            </select>
+            <button type="button" onclick="moveSensorField(${i}, -1)" ${i === 0 ? 'disabled' : ''}
+                    class="h-9 w-7 rounded-lg border flex items-center justify-center text-xs hover:bg-black/5 disabled:opacity-30 transition"
+                    style="border-color: var(--border);">↑</button>
+            <button type="button" onclick="removeSensorField(${i})"
+                    class="h-9 w-7 rounded-lg border flex items-center justify-center text-xs hover:bg-red-50 transition"
+                    style="border-color: var(--border); color: var(--muted-foreground);">✕</button>
+          `;
+          container.appendChild(div);
+        });
+      }
+
+      function addSensorField() { sensorFieldRows.push({ name: '', type: 'number', unit: '' }); renderSensorFields(); }
+      function removeSensorField(i) { sensorFieldRows.splice(i, 1); renderSensorFields(); }
+      function moveSensorField(i, dir) {
+        const j = i + dir;
+        if (j < 0 || j >= sensorFieldRows.length) return;
+        [sensorFieldRows[i], sensorFieldRows[j]] = [sensorFieldRows[j], sensorFieldRows[i]];
+        renderSensorFields();
+      }
+
+      function submitSensor() {
+        const valid = sensorFieldRows.filter(f => f.name.trim() !== '');
+        document.getElementById('sensor-fields-json').value = JSON.stringify(valid);
+        document.getElementById('sensor-form').submit();
+      }
+
+      // ─── Edit existing sensor ──────────────────────────────────────────────────
+      function editSensor(id) {
+        const sensor = GH_SENSORS.find(s => s.id === id);
+        if (!sensor) return;
+        document.querySelectorAll('.sensor-tpl-card').forEach(c => { c.style.borderColor = 'var(--border)'; c.style.background = 'var(--card)'; });
+        document.getElementById('sensor-name-input').value = sensor.name;
+        document.getElementById('sensor-desc-input').value = sensor.description || '';
+        document.getElementById('sensor-panel-title').textContent = 'Edit Sensor';
+        sensorFieldRows = (sensor.fields || []).map(f => ({ name: f.name || '', type: f.type || 'number', unit: f.unit || '' }));
+        if (!sensorFieldRows.length) sensorFieldRows = [{ name: '', type: 'number', unit: '' }];
+        renderSensorFields();
+        document.getElementById('add-sensor-panel').classList.remove('hidden');
+        document.getElementById('add-sensor-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      // ─── Panel toggle ──────────────────────────────────────────────────────────
+      function toggleAddSensor() {
+        const panel = document.getElementById('add-sensor-panel');
+        const wasHidden = panel.classList.contains('hidden');
+        panel.classList.toggle('hidden');
+        if (wasHidden) {
+          document.getElementById('sensor-name-input').value = '';
+          document.getElementById('sensor-desc-input').value = '';
+          document.getElementById('sensor-panel-title').textContent = 'New Sensor';
+          sensorFieldRows = [];
+          renderSensorFields();
+          document.querySelectorAll('.sensor-tpl-card').forEach(c => { c.style.borderColor = 'var(--border)'; c.style.background = 'var(--card)'; });
+          panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+
+      function closeAddSensor() {
+        document.getElementById('add-sensor-panel').classList.add('hidden');
+      }
+
+      // ─── Alert rule: populate field dropdown based on sensor ─────────────────
+      const GH_SENSORS = JSON.parse(document.getElementById('sensors-json').textContent);
+
+      function populateRuleFields(select) {
+        const schemaId = parseInt(select.value);
+        const fieldSelect = document.getElementById('rule-field-select');
+        fieldSelect.innerHTML = '<option value="">— or type below —</option>';
+        if (!schemaId) return;
+        const sensor = GH_SENSORS.find(s => s.id === schemaId);
+        if (!sensor) return;
+        sensor.fields.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.name;
+          opt.textContent = f.name + (f.unit ? ' (' + f.unit + ')' : '');
+          fieldSelect.appendChild(opt);
+        });
+      }
+
+      // ─── Copy API snippet ─────────────────────────────────────────────────────
+      function copyApiSnippet(btn) {
+        const pre = btn.closest('.rounded-xl').querySelector('pre');
+        navigator.clipboard.writeText(pre.innerText).then(() => {
+          const orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = orig; }, 1500);
+        });
+      }
+
+      // ─── Init ─────────────────────────────────────────────────────────────────
+      renderSensorTemplateGrid();
+    </script>
+  </body>
+</html>

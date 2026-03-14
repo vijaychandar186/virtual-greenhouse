@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sensor Data</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+    <style>
+      .dt-pop { display: none; }
+      .dt-pop.open { display: block; }
+      .dt-item:hover { background: rgba(0,0,0,0.04); }
+      .dt-sort-btn { display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; letter-spacing: .07em; text-transform: uppercase; }
+      .dt-sort-btn:hover { background: rgba(0,0,0,0.05); }
+      button:disabled { opacity: 0.4; pointer-events: none; }
+      @keyframes dt-spin { to { transform: rotate(360deg); } }
+      .dt-spinning { animation: dt-spin 0.7s linear infinite; }
+    </style>
+  </head>
+  <body class="flex min-h-screen" style="background: var(--background); color: var(--foreground);">
+    {% set active = 'sensors' %}
+    {% include 'layout/_sidebar.html' %}
+
+    <div class="main-shell flex-1 flex flex-col min-w-0 overflow-hidden">
+    <main class="flex-1 overflow-auto px-8 py-8">
+
+      {% for message in get_flashed_messages() %}
+      <div class="mb-4 rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary);">{{ message }}</div>
+      {% endfor %}
+      {% if msg %}
+      <div class="mb-4 rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary);">{{ msg }}</div>
+      {% endif %}
+
+      <div class="mb-6">
+        <p class="text-xs uppercase tracking-[0.2em]" style="color: var(--muted-foreground);">Live Feed</p>
+        <h1 class="text-2xl font-semibold">Sensor Data</h1>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="flex flex-wrap items-center gap-2 mb-3 p-1">
+        <!-- Search -->
+        <input id="dt-search" type="text" placeholder="Search..."
+               class="h-8 rounded-md border px-3 text-sm focus:outline-none"
+               style="border-color: var(--input); background: var(--background); width: 10rem;"
+               oninput="onSearch(this.value)" />
+
+        <!-- Faceted filters -->
+        <div id="wrap-schema" class="relative">
+          <button id="btn-schema" onclick="togglePop('schema')"
+                  class="h-8 rounded-md border border-dashed px-2.5 text-xs flex items-center gap-1.5 transition hover:bg-black/5"
+                  style="border-color: var(--border);">
+            <span id="icon-schema"></span><span>Schema</span><span id="badge-schema"></span>
+          </button>
+          <div id="pop-schema" class="dt-pop absolute left-0 top-9 z-50 w-52 rounded-xl border shadow-lg overflow-hidden"
+               style="border-color: var(--border); background: var(--popover);">
+            <div class="p-2 border-b" style="border-color: var(--border);">
+              <input type="text" placeholder="Schema..." oninput="renderItems('schema', this.value)"
+                     class="w-full text-xs rounded-md border px-2 py-1.5 focus:outline-none"
+                     style="border-color: var(--input); background: var(--background);" />
+            </div>
+            <div id="items-schema" class="max-h-56 overflow-y-auto py-1"></div>
+            <div id="clear-schema" class="border-t py-1" style="border-color: var(--border); display:none;">
+              <button onclick="clearFilter('schema')" class="w-full text-center text-xs py-1.5 transition hover:bg-black/5">Clear filters</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="wrap-device" class="relative">
+          <button id="btn-device" onclick="togglePop('device')"
+                  class="h-8 rounded-md border border-dashed px-2.5 text-xs flex items-center gap-1.5 transition hover:bg-black/5"
+                  style="border-color: var(--border);">
+            <span id="icon-device"></span><span>Device</span><span id="badge-device"></span>
+          </button>
+          <div id="pop-device" class="dt-pop absolute left-0 top-9 z-50 w-52 rounded-xl border shadow-lg overflow-hidden"
+               style="border-color: var(--border); background: var(--popover);">
+            <div class="p-2 border-b" style="border-color: var(--border);">
+              <input type="text" placeholder="Device..." oninput="renderItems('device', this.value)"
+                     class="w-full text-xs rounded-md border px-2 py-1.5 focus:outline-none"
+                     style="border-color: var(--input); background: var(--background);" />
+            </div>
+            <div id="items-device" class="max-h-56 overflow-y-auto py-1"></div>
+            <div id="clear-device" class="border-t py-1" style="border-color: var(--border); display:none;">
+              <button onclick="clearFilter('device')" class="w-full text-center text-xs py-1.5 transition hover:bg-black/5">Clear filters</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="wrap-greenhouse" class="relative">
+          <button id="btn-greenhouse" onclick="togglePop('greenhouse')"
+                  class="h-8 rounded-md border border-dashed px-2.5 text-xs flex items-center gap-1.5 transition hover:bg-black/5"
+                  style="border-color: var(--border);">
+            <span id="icon-greenhouse"></span><span>Greenhouse</span><span id="badge-greenhouse"></span>
+          </button>
+          <div id="pop-greenhouse" class="dt-pop absolute left-0 top-9 z-50 w-52 rounded-xl border shadow-lg overflow-hidden"
+               style="border-color: var(--border); background: var(--popover);">
+            <div class="p-2 border-b" style="border-color: var(--border);">
+              <input type="text" placeholder="Greenhouse..." oninput="renderItems('greenhouse', this.value)"
+                     class="w-full text-xs rounded-md border px-2 py-1.5 focus:outline-none"
+                     style="border-color: var(--input); background: var(--background);" />
+            </div>
+            <div id="items-greenhouse" class="max-h-56 overflow-y-auto py-1"></div>
+            <div id="clear-greenhouse" class="border-t py-1" style="border-color: var(--border); display:none;">
+              <button onclick="clearFilter('greenhouse')" class="w-full text-center text-xs py-1.5 transition hover:bg-black/5">Clear filters</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reset all -->
+        <button id="btn-reset" onclick="resetAll()" style="display:none; color: var(--muted-foreground);"
+                class="h-8 rounded-md px-2.5 text-xs flex items-center gap-1.5 transition hover:bg-black/5">
+          Reset
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+
+        <!-- Refresh button -->
+        <button id="btn-refresh" onclick="refreshData()"
+                class="h-8 rounded-md border px-2.5 text-xs flex items-center gap-1.5 transition hover:bg-black/5 ml-auto"
+                style="border-color: var(--border);" title="Refresh data">
+          <svg id="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+          Refresh
+        </button>
+
+        <!-- View options -->
+        <div id="wrap-view" class="relative">
+          <button onclick="togglePop('view')"
+                  class="h-8 rounded-md border px-2.5 text-xs flex items-center gap-1.5 transition hover:bg-black/5"
+                  style="border-color: var(--border);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-9M14 17H5M17 17a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM7 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
+            View
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="opacity:.5;"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>
+          </button>
+          <div id="pop-view" class="dt-pop absolute right-0 top-9 z-50 w-48 rounded-xl border shadow-lg overflow-hidden"
+               style="border-color: var(--border); background: var(--popover);">
+            <div class="p-2 border-b" style="border-color: var(--border);">
+              <div class="flex items-center gap-2">
+                <button id="view-toggle-all" onclick="toggleAllCols()"
+                        style="display:flex;width:16px;height:16px;align-items:center;justify-content:center;border-radius:3px;border:1.5px solid currentColor;flex-shrink:0;">
+                </button>
+                <input type="text" placeholder="Search columns..." oninput="renderViewItems(this.value)"
+                       class="flex-1 min-w-0 text-xs rounded-md border px-2 py-1.5 focus:outline-none"
+                       style="border-color: var(--input); background: var(--background);" />
+              </div>
+            </div>
+            <div id="items-view" class="py-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="rounded-2xl border overflow-x-auto" style="border-color: var(--border); background: var(--card);">
+        <table class="min-w-full text-left text-sm">
+          <thead class="border-b" style="border-color: var(--border); background: var(--secondary);">
+            <tr>
+              <th id="th-time" class="px-4 py-2.5">
+                <button class="dt-sort-btn" onclick="sortBy('time')" style="color: var(--muted-foreground);">
+                  Time <span id="sort-time"></span>
+                </button>
+              </th>
+              <th id="th-schema" class="px-4 py-2.5">
+                <button class="dt-sort-btn" onclick="sortBy('schema')" style="color: var(--muted-foreground);">
+                  Schema <span id="sort-schema"></span>
+                </button>
+              </th>
+              <th id="th-device" class="px-4 py-2.5">
+                <button class="dt-sort-btn" onclick="sortBy('device')" style="color: var(--muted-foreground);">
+                  Device <span id="sort-device"></span>
+                </button>
+              </th>
+              <th id="th-greenhouse" class="px-4 py-2.5">
+                <button class="dt-sort-btn" onclick="sortBy('greenhouse')" style="color: var(--muted-foreground);">
+                  Greenhouse <span id="sort-greenhouse"></span>
+                </button>
+              </th>
+              <th id="th-data" class="px-4 py-2.5 text-xs font-medium uppercase tracking-widest" style="color: var(--muted-foreground);">Data</th>
+            </tr>
+          </thead>
+          <tbody id="dt-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex flex-col-reverse sm:flex-row items-center justify-between gap-4 mt-4 p-1">
+        <span id="dt-count" class="text-sm flex-1 whitespace-nowrap" style="color: var(--muted-foreground);"></span>
+        <div class="flex flex-col-reverse sm:flex-row items-center gap-4 sm:gap-6">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium whitespace-nowrap">Rows per page</span>
+            <select id="dt-pagesize" onchange="setPageSize(+this.value)"
+                    class="h-8 rounded-md border px-2 text-sm focus:outline-none"
+                    style="border-color: var(--border); background: var(--background); width: 4.5rem;">
+              <option>10</option><option>20</option><option>30</option><option>50</option>
+            </select>
+          </div>
+          <span id="dt-page-label" class="text-sm font-medium whitespace-nowrap"></span>
+          <div class="flex items-center gap-1">
+            <button id="btn-first" onclick="goPage(0)"
+                    class="h-8 w-8 rounded-md border flex items-center justify-center transition hover:bg-black/5"
+                    style="border-color: var(--border);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m11 17-5-5 5-5M18 17l-5-5 5-5"/></svg>
+            </button>
+            <button id="btn-prev" onclick="goPage(state.page - 1)"
+                    class="h-8 w-8 rounded-md border flex items-center justify-center transition hover:bg-black/5"
+                    style="border-color: var(--border);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <button id="btn-next" onclick="goPage(state.page + 1)"
+                    class="h-8 w-8 rounded-md border flex items-center justify-center transition hover:bg-black/5"
+                    style="border-color: var(--border);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+            <button id="btn-last" onclick="goPage(Infinity)"
+                    class="h-8 w-8 rounded-md border flex items-center justify-center transition hover:bg-black/5"
+                    style="border-color: var(--border);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 17 5-5-5-5M13 17l5-5-5-5"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+    </div>
+
+    <script>
+      // ─── Data ─────────────────────────────────────────────────────────────────
+      let ALL_ROWS = {{ rows_json | safe }};
+
+      // ─── Icons ────────────────────────────────────────────────────────────────
+      const IC = {
+        plus:       `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>`,
+        x:          `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>`,
+        check:      `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>`,
+        chevUp:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>`,
+        chevDown:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>`,
+        caretSort:  `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>`,
+      };
+
+      // ─── State ────────────────────────────────────────────────────────────────
+      const state = {
+        search: '',
+        filters: { schema: new Set(), device: new Set(), greenhouse: new Set() },
+        sort: { col: 'time', dir: 'desc' },
+        page: 0,
+        pageSize: 10,
+        hiddenCols: new Set(),
+      };
+
+      const FILTER_COLS = ['schema', 'device', 'greenhouse'];
+      const ALL_COLS    = ['time', 'schema', 'device', 'greenhouse', 'data'];
+      const COL_LABEL   = { time: 'Time', schema: 'Schema', device: 'Device', greenhouse: 'Greenhouse', data: 'Data' };
+
+      // ─── Helpers ──────────────────────────────────────────────────────────────
+      function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      function rowVal(row, col) {
+        if (col === 'time')       return row.recorded_at || '';
+        if (col === 'schema')     return row.schema_name || 'custom';
+        if (col === 'device')     return row.device_id   || '—';
+        if (col === 'greenhouse') return row.greenhouse_name || '—';
+        return '';
+      }
+
+      function facetedValues(col) {
+        const counts = {};
+        for (const r of ALL_ROWS) {
+          const v = rowVal(r, col);
+          counts[v] = (counts[v] || 0) + 1;
+        }
+        return Object.entries(counts).sort(([a], [b]) => a.localeCompare(b));
+      }
+
+      // ─── Filtering / sorting ──────────────────────────────────────────────────
+      function filteredRows() {
+        let rows = ALL_ROWS;
+
+        if (state.search) {
+          const q = state.search.toLowerCase();
+          rows = rows.filter(r =>
+            (r.schema_name || 'custom').toLowerCase().includes(q) ||
+            (r.device_id   || '').toLowerCase().includes(q) ||
+            (r.greenhouse_name || '').toLowerCase().includes(q) ||
+            Object.entries(r.data || {}).some(([k, v]) =>
+              k.toLowerCase().includes(q) || String(v).toLowerCase().includes(q)
+            )
+          );
+        }
+
+        for (const col of FILTER_COLS) {
+          if (state.filters[col].size > 0)
+            rows = rows.filter(r => state.filters[col].has(rowVal(r, col)));
+        }
+
+        const { col, dir } = state.sort;
+        if (col && dir) {
+          rows = [...rows].sort((a, b) => {
+            const av = rowVal(a, col), bv = rowVal(b, col);
+            const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+            return dir === 'asc' ? cmp : -cmp;
+          });
+        }
+
+        return rows;
+      }
+
+      // ─── Render ───────────────────────────────────────────────────────────────
+      function render() {
+        const filtered = filteredRows();
+        const total    = filtered.length;
+        const pageCount = Math.max(1, Math.ceil(total / state.pageSize));
+        state.page = Math.max(0, Math.min(state.page, pageCount - 1));
+        const start    = state.page * state.pageSize;
+        const pageRows = filtered.slice(start, start + state.pageSize);
+
+        renderBody(pageRows, filtered.length, ALL_ROWS.length);
+        renderHeaders();
+        renderFilterBtns();
+        renderPagination(total, pageCount);
+      }
+
+      function renderBody(rows, filteredTotal, grandTotal) {
+        const tbody = document.getElementById('dt-body');
+        const visibleCols = ALL_COLS.filter(c => !state.hiddenCols.has(c));
+        const colSpan = visibleCols.length;
+
+        if (rows.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="${colSpan}" class="px-5 py-10 text-center text-sm" style="color:var(--muted-foreground);">No results found.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = rows.map(row => {
+          const time  = row.recorded_at ? row.recorded_at.slice(0,16).replace('T',' ') : '—';
+          const dataHtml = row.data && Object.keys(row.data).length
+            ? `<div class="flex flex-wrap gap-x-3 gap-y-1">${Object.entries(row.data).map(([k,v]) =>
+                `<span class="text-xs"><span class="font-medium" style="color:var(--primary);">${esc(k)}</span> <span style="color:var(--muted-foreground);">=</span> ${esc(String(v))}</span>`
+              ).join('')}</div>`
+            : `<span style="color:var(--muted-foreground);">—</span>`;
+
+          const cells = {
+            time:        `<td class="px-4 py-3 text-xs font-medium whitespace-nowrap">${esc(time)}</td>`,
+            schema:      `<td class="px-4 py-3 text-xs">${esc(rowVal(row,'schema'))}</td>`,
+            device:      `<td class="px-4 py-3 text-xs font-mono">${esc(rowVal(row,'device'))}</td>`,
+            greenhouse:  `<td class="px-4 py-3 text-xs">${esc(rowVal(row,'greenhouse'))}</td>`,
+            data:        `<td class="px-4 py-3">${dataHtml}</td>`,
+          };
+
+          return `<tr class="border-b last:border-0 hover:bg-black/[0.02] transition" style="border-color:var(--border);">
+            ${visibleCols.map(c => cells[c]).join('')}
+          </tr>`;
+        }).join('');
+      }
+
+      function renderHeaders() {
+        // Sort icons
+        for (const col of ['time','schema','device','greenhouse']) {
+          const el = document.getElementById(`sort-${col}`);
+          if (!el) continue;
+          if (state.sort.col === col)
+            el.innerHTML = state.sort.dir === 'asc' ? IC.chevUp : IC.chevDown;
+          else
+            el.innerHTML = IC.caretSort;
+        }
+        // Column visibility
+        for (const col of ALL_COLS) {
+          const th = document.getElementById(`th-${col}`);
+          if (th) th.style.display = state.hiddenCols.has(col) ? 'none' : '';
+        }
+      }
+
+      function renderFilterBtns() {
+        const SEP = `<span style="display:inline-block;width:1px;height:14px;margin:0 3px;background:var(--border);vertical-align:middle;"></span>`;
+
+        for (const col of FILTER_COLS) {
+          const active = state.filters[col];
+          const icon   = document.getElementById(`icon-${col}`);
+          const badge  = document.getElementById(`badge-${col}`);
+          const clearD = document.getElementById(`clear-${col}`);
+
+          if (active.size > 0) {
+            icon.innerHTML = `<span role="button" onclick="clearFilter('${col}');event.stopPropagation();" style="opacity:.7;line-height:0;" onmouseenter="this.style.opacity=1" onmouseleave="this.style.opacity=.7">${IC.x}</span>`;
+            clearD.style.display = '';
+            const vals = [...active];
+            badge.style.display = '';
+            badge.innerHTML = SEP + (vals.length <= 2
+              ? vals.map(v => `<span style="background:var(--secondary);border-radius:4px;padding:1px 5px;">${esc(v)}</span>`).join(' ')
+              : `<span style="background:var(--secondary);border-radius:4px;padding:1px 5px;">${active.size} selected</span>`
+            );
+          } else {
+            icon.innerHTML = IC.plus;
+            badge.style.display = 'none';
+            badge.innerHTML = '';
+            clearD.style.display = 'none';
+          }
+        }
+
+        const anyActive = FILTER_COLS.some(c => state.filters[c].size > 0) || state.search;
+        document.getElementById('btn-reset').style.display = anyActive ? '' : 'none';
+      }
+
+      function renderPagination(total, pageCount) {
+        document.getElementById('dt-count').textContent      = `${total} row(s) total.`;
+        document.getElementById('dt-page-label').textContent = `Page ${state.page + 1} of ${pageCount}`;
+        document.getElementById('btn-first').disabled = state.page === 0;
+        document.getElementById('btn-prev').disabled  = state.page === 0;
+        document.getElementById('btn-next').disabled  = state.page >= pageCount - 1;
+        document.getElementById('btn-last').disabled  = state.page >= pageCount - 1;
+      }
+
+      // ─── Filter popover items ─────────────────────────────────────────────────
+      function renderItems(col, query = '') {
+        const container = document.getElementById(`items-${col}`);
+        if (!container) return;
+        const q    = query.toLowerCase();
+        const all  = facetedValues(col);
+        const list = q ? all.filter(([v]) => v.toLowerCase().includes(q)) : all;
+        const sel  = state.filters[col];
+
+        if (!list.length) {
+          container.innerHTML = `<div class="text-xs px-3 py-2 text-center" style="color:var(--muted-foreground);">No results found.</div>`;
+          return;
+        }
+
+        container.innerHTML = list.map(([value, count]) => {
+          const checked = sel.has(value);
+          const boxStyle = checked
+            ? `background:var(--primary);border-color:var(--primary);color:var(--primary-foreground);`
+            : `opacity:.5;`;
+          return `<button class="dt-item w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left"
+                          data-col="${esc(col)}" data-val="${esc(value)}"
+                          onclick="toggleFilter(this.dataset.col, this.dataset.val)">
+            <span style="display:flex;width:16px;height:16px;align-items:center;justify-content:center;border-radius:3px;border:1.5px solid currentColor;flex-shrink:0;${boxStyle}">
+              ${checked ? IC.check : ''}
+            </span>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(value)}</span>
+            <span style="font-family:monospace;opacity:.5;">${count}</span>
+          </button>`;
+        }).join('');
+      }
+
+      // ─── View (column visibility) items ──────────────────────────────────────
+      const VIEW_COLS = ALL_COLS.filter(c => c !== 'time'); // time always visible
+
+      function renderViewItems(query = '') {
+        const container = document.getElementById('items-view');
+        if (!container) return;
+        const q    = query.toLowerCase();
+        const list = q ? VIEW_COLS.filter(c => COL_LABEL[c].toLowerCase().includes(q)) : VIEW_COLS;
+
+        container.innerHTML = list.map(col => {
+          const visible  = !state.hiddenCols.has(col);
+          const boxStyle = visible
+            ? `background:var(--primary);border-color:var(--primary);color:var(--primary-foreground);`
+            : `opacity:.5;`;
+          return `<button class="dt-item w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left"
+                          data-col="${col}" onclick="toggleColVis(this.dataset.col)">
+            <span style="display:flex;width:16px;height:16px;align-items:center;justify-content:center;border-radius:3px;border:1.5px solid currentColor;flex-shrink:0;${boxStyle}">
+              ${visible ? IC.check : ''}
+            </span>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;">${COL_LABEL[col]}</span>
+          </button>`;
+        }).join('');
+
+        // Sync the select-all toggle button
+        const allVisible = VIEW_COLS.every(c => !state.hiddenCols.has(c));
+        const noneVisible = VIEW_COLS.every(c => state.hiddenCols.has(c));
+        const btn = document.getElementById('view-toggle-all');
+        if (btn) {
+          const mixed = !allVisible && !noneVisible;
+          btn.style.background    = allVisible ? 'var(--primary)' : '';
+          btn.style.borderColor   = allVisible ? 'var(--primary)' : 'currentColor';
+          btn.style.color         = allVisible ? 'var(--primary-foreground)' : 'currentColor';
+          btn.style.opacity       = noneVisible ? '.5' : '1';
+          btn.innerHTML           = allVisible ? IC.check : (mixed ? `<span style="display:block;width:8px;height:2px;background:currentColor;border-radius:1px;"></span>` : '');
+          btn.title               = allVisible ? 'Hide all columns' : 'Show all columns';
+        }
+      }
+
+      function toggleAllCols() {
+        const allVisible = VIEW_COLS.every(c => !state.hiddenCols.has(c));
+        if (allVisible) {
+          VIEW_COLS.forEach(c => state.hiddenCols.add(c));
+        } else {
+          state.hiddenCols.clear();
+        }
+        render();
+        renderViewItems('');
+      }
+
+      // ─── Popover management ───────────────────────────────────────────────────
+      let openPop = null;
+      function togglePop(name) {
+        const pop = document.getElementById(`pop-${name}`);
+        if (!pop) return;
+        if (openPop === name) {
+          pop.classList.remove('open');
+          openPop = null;
+        } else {
+          if (openPop) document.getElementById(`pop-${openPop}`)?.classList.remove('open');
+          pop.classList.add('open');
+          openPop = name;
+          if (name === 'view') renderViewItems('');
+          else renderItems(name);
+        }
+      }
+
+      document.addEventListener('click', e => {
+        if (!openPop) return;
+        const wrap = document.getElementById(`wrap-${openPop}`);
+        if (wrap && !wrap.contains(e.target)) {
+          document.getElementById(`pop-${openPop}`)?.classList.remove('open');
+          openPop = null;
+        }
+      });
+
+      // ─── Event handlers ───────────────────────────────────────────────────────
+      function onSearch(v)  { state.search = v; state.page = 0; render(); }
+      function sortBy(col)  {
+        if (state.sort.col === col) {
+          if (state.sort.dir === 'asc') state.sort.dir = 'desc';
+          else { state.sort.col = null; state.sort.dir = null; }
+        } else {
+          state.sort = { col, dir: 'asc' };
+        }
+        render();
+      }
+      function toggleFilter(col, val) {
+        state.filters[col].has(val) ? state.filters[col].delete(val) : state.filters[col].add(val);
+        state.page = 0;
+        render();
+        renderItems(col);
+      }
+      function clearFilter(col) {
+        state.filters[col].clear();
+        state.page = 0;
+        render();
+        renderItems(col);
+      }
+      function resetAll() {
+        FILTER_COLS.forEach(c => state.filters[c].clear());
+        state.search = '';
+        document.getElementById('dt-search').value = '';
+        state.page = 0;
+        render();
+        FILTER_COLS.forEach(c => renderItems(c));
+      }
+      function setPageSize(n) { state.pageSize = n; state.page = 0; render(); }
+      function goPage(n) {
+        const pc = Math.max(1, Math.ceil(filteredRows().length / state.pageSize));
+        state.page = Math.max(0, Math.min(Math.round(n), pc - 1));
+        render();
+      }
+      function toggleColVis(col) {
+        state.hiddenCols.has(col) ? state.hiddenCols.delete(col) : state.hiddenCols.add(col);
+        render();
+        renderViewItems(document.querySelector('#pop-view input')?.value ?? '');
+      }
+
+      // ─── Refresh ──────────────────────────────────────────────────────────────
+      async function refreshData() {
+        const btn  = document.getElementById('btn-refresh');
+        const icon = document.getElementById('refresh-icon');
+        btn.disabled = true;
+        icon.classList.add('dt-spinning');
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const res    = await fetch(`/sensor_status/data?${params}`);
+          if (!res.ok) throw new Error('fetch failed');
+          const fresh = await res.json();
+          ALL_ROWS.length = 0;
+          fresh.forEach(r => ALL_ROWS.push(r));
+          state.page = 0;
+          render();
+          FILTER_COLS.forEach(c => { if (openPop === c) renderItems(c); });
+        } catch (e) {
+          console.error('Refresh failed:', e);
+        } finally {
+          btn.disabled = false;
+          icon.classList.remove('dt-spinning');
+        }
+      }
+
+      // ─── Init ─────────────────────────────────────────────────────────────────
+      render();
+    </script>
+  </body>
+</html>

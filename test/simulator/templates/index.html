@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sensor Simulator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f8f9f3; color: #1a1f1a; }
+    h1, h2 { font-family: Georgia, serif; }
+    pre { white-space: pre-wrap; word-break: break-word; font-size: 0.75rem; }
+  </style>
+</head>
+<body class="min-h-screen p-8">
+  <div class="max-w-4xl mx-auto">
+    <div class="mb-8">
+      <p class="text-xs uppercase tracking-widest text-gray-500 mb-1">Virtual Greenhouse</p>
+      <h1 class="text-3xl font-semibold">Sensor Simulator</h1>
+      <p class="text-sm text-gray-500 mt-1">
+        Pushing to <strong>{{ main_api }}</strong> &mdash; independent server on port 5001.
+      </p>
+    </div>
+
+    <!-- Create job -->
+    <div class="bg-white rounded-2xl border border-gray-200 p-6 mb-8 shadow-sm">
+      <h2 class="text-xl font-semibold mb-4">New Simulation Job</h2>
+      <form method="POST" action="/jobs" class="grid gap-4 md:grid-cols-2" id="job-form">
+        <div>
+          <label class="text-xs uppercase tracking-wide text-gray-500 block mb-1.5">Schema Name *</label>
+          <select name="schema_name" id="schema-select" onchange="loadSchemaFields(this.value)"
+                  class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+            <option value="">— loading schemas... —</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-wide text-gray-500 block mb-1.5">Device ID *</label>
+          <input type="text" name="device_id" value="sim-device-01" required
+                 class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-wide text-gray-500 block mb-1.5">Greenhouse ID (optional)</label>
+          <select name="greenhouse_id" id="greenhouse-select"
+                  class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400 bg-white">
+            <option value="">— none —</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-wide text-gray-500 block mb-1.5">Interval (seconds)</label>
+          <input type="number" name="interval" value="10" min="1" step="1"
+                 class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+        </div>
+        <div>
+          <label class="text-xs uppercase tracking-wide text-gray-500 block mb-1.5">Count (0 = forever)</label>
+          <input type="number" name="count" value="0" min="0" step="1"
+                 class="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-400" />
+        </div>
+        <div class="flex items-end">
+          <button type="submit"
+                  class="w-full rounded-xl bg-green-600 text-white px-4 py-2.5 text-sm font-semibold shadow hover:bg-green-700 transition">
+            Start Simulation
+          </button>
+        </div>
+      </form>
+
+      <!-- Schema fields preview -->
+      <div id="fields-preview" class="mt-4 hidden">
+        <p class="text-xs uppercase tracking-wide text-gray-500 mb-2">Fields that will be simulated</p>
+        <div id="fields-list" class="flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+
+    <!-- Running jobs -->
+    <h2 class="text-xl font-semibold mb-4">Running Jobs</h2>
+    <div id="jobs-list"></div>
+  </div>
+
+  <script>
+    let schemaCache = {};
+
+    async function fetchSchemas() {
+      try {
+        const r = await fetch('/proxy/schemas');
+        const d = await r.json();
+        const select = document.getElementById('schema-select');
+        select.innerHTML = '<option value="">— pick a schema —</option>';
+        (d.schemas || []).forEach(s => {
+          schemaCache[s.name] = s.fields || [];
+          const opt = document.createElement('option');
+          opt.value = s.name;
+          opt.textContent = s.name + ' (' + (s.fields || []).length + ' fields)';
+          select.appendChild(opt);
+        });
+      } catch(e) {
+        console.error('Could not fetch schemas:', e);
+      }
+    }
+
+    async function fetchGreenhouses() {
+      try {
+        const r = await fetch('/proxy/greenhouses');
+        const d = await r.json();
+        const select = document.getElementById('greenhouse-select');
+        (d.greenhouses || []).forEach(g => {
+          const opt = document.createElement('option');
+          opt.value = g.id;
+          opt.textContent = g.greenhouse_name + ' (#' + g.id + ')';
+          select.appendChild(opt);
+        });
+      } catch(e) {}
+    }
+
+    function loadSchemaFields(schemaName) {
+      const fields = schemaCache[schemaName] || [];
+      const preview = document.getElementById('fields-preview');
+      const list = document.getElementById('fields-list');
+      if (!fields.length) { preview.classList.add('hidden'); return; }
+      preview.classList.remove('hidden');
+      list.innerHTML = fields.map(f =>
+        `<span class="text-xs rounded-full border border-gray-200 px-2.5 py-1">
+          <strong>${f.name}</strong> ${f.type}${f.unit ? ' · ' + f.unit : ''}
+        </span>`
+      ).join('');
+    }
+
+    function renderJobs(jobs) {
+      const el = document.getElementById('jobs-list');
+      if (!jobs.length) {
+        el.innerHTML = '<div class="bg-white rounded-2xl border border-gray-200 p-10 text-center shadow-sm"><p class="text-gray-500">No simulations running. Start one above.</p></div>';
+        return;
+      }
+      el.innerHTML = '<div class="space-y-4">' + jobs.map(job => `
+        <div class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-3 mb-1">
+                <span class="inline-block w-2 h-2 rounded-full ${job.status === 'running' ? 'bg-green-500' : job.status === 'stopped' ? 'bg-gray-400' : 'bg-blue-400'}"></span>
+                <h3 class="font-semibold">${job.schema_name} &rarr; ${job.device_id}</h3>
+                <span class="text-xs px-2 py-0.5 rounded-full border border-gray-200 text-gray-500">${job.status}</span>
+              </div>
+              <p class="text-xs text-gray-500">
+                Greenhouse: ${job.greenhouse_id || 'any'} &middot;
+                Interval: ${job.interval}s &middot;
+                Sent: <strong>${job.sent}</strong>
+                ${job.last_sent ? '&middot; Last: ' + job.last_sent.slice(0,16).replace('T',' ') : ''}
+              </p>
+              ${job.last_error ? `<p class="text-xs text-red-500 mt-1">Error: ${job.last_error}</p>` : ''}
+              ${job.last_reading ? '<div class="mt-2 flex flex-wrap gap-2">' + Object.entries(job.last_reading).map(([k,v]) =>
+                `<span class="text-xs rounded border border-gray-200 px-2 py-0.5"><span class="font-medium text-green-700">${k}</span><span class="text-gray-500"> = ${v}</span></span>`
+              ).join('') + '</div>' : ''}
+            </div>
+            <div class="flex gap-2 shrink-0">
+              ${job.status === 'running' ? `<form method="POST" action="/jobs/${job.id}/stop"><button class="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-medium hover:bg-gray-50 transition">Stop</button></form>` : ''}
+              <form method="POST" action="/jobs/${job.id}/delete"><button class="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-medium hover:bg-red-50 transition text-gray-400">Remove</button></form>
+            </div>
+          </div>
+        </div>`).join('') + '</div>';
+    }
+
+    async function refreshJobs() {
+      try {
+        const r = await fetch('/api/jobs');
+        renderJobs(await r.json());
+      } catch(e) {}
+    }
+
+    fetchSchemas();
+    fetchGreenhouses();
+    refreshJobs();
+    setInterval(refreshJobs, 5000);
+  </script>
+</body>
+</html>

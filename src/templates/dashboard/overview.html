@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Overview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='global.css') }}" />
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon" />
+  </head>
+  <body class="flex min-h-screen" style="background: var(--background); color: var(--foreground);">
+    {% set active = 'overview' %}
+    {% include 'layout/_sidebar.html' %}
+
+    <div class="main-shell flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main class="flex-1 overflow-auto px-8 py-8">
+
+        {% for message in get_flashed_messages() %}
+        <div class="mb-4 rounded-xl border px-4 py-3 text-sm" style="border-color: var(--border); background: var(--secondary);">{{ message }}</div>
+        {% endfor %}
+
+        <!-- Header -->
+        <div class="mb-8 flex items-center justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em]" style="color: var(--muted-foreground);">Charts</p>
+            <h1 class="text-2xl font-semibold">Overview</h1>
+          </div>
+          <button onclick="document.getElementById('add-chart-panel').classList.toggle('hidden')"
+                  class="rounded-full px-4 py-2 text-sm font-semibold text-white shadow"
+                  style="background: var(--primary);">+ Add Chart</button>
+        </div>
+
+        <!-- Add chart panel -->
+        <div id="add-chart-panel" class="hidden mb-8">
+          <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card);">
+            <h2 class="text-base font-semibold mb-4">Configure chart</h2>
+            <form action="{{ url_for('main.create_chart') }}" method="POST" class="grid gap-4 md:grid-cols-3">
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Schema</label>
+                <select id="chart-schema-select" name="schema_id" onchange="populateFields(this)"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="">— any schema —</option>
+                  {% for s in schemas %}
+                  <option value="{{ s.id }}">{{ s.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Field</label>
+                <select id="chart-field-select" name="field_name"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="">— pick schema first —</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Greenhouse (optional)</label>
+                <select name="greenhouse_id"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="">— all greenhouses —</option>
+                  {% for g in greenhouses %}
+                  <option value="{{ g.id }}">{{ g.greenhouse_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Chart Type</label>
+                <select name="chart_type"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="line">Line chart</option>
+                  <option value="bar">Bar chart</option>
+                  <option value="gauge">Gauge (latest value)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Chart Name</label>
+                <input type="text" name="chart_name" placeholder="Auto-filled from field"
+                       class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                       style="border-color: var(--input);" />
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Color</label>
+                <input type="color" name="color" value="#22c55e"
+                       class="w-full h-11 rounded-xl border cursor-pointer"
+                       style="border-color: var(--input);" />
+              </div>
+              <div class="md:col-span-3 flex gap-3">
+                <button type="submit" class="rounded-full px-5 py-2 text-sm font-semibold text-white shadow"
+                        style="background: var(--primary);">Add Chart</button>
+                <button type="button" onclick="document.getElementById('add-chart-panel').classList.add('hidden')"
+                        class="rounded-full border px-5 py-2 text-sm font-semibold"
+                        style="border-color: var(--border);">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Edit chart panel -->
+        <div id="edit-chart-panel" class="hidden mb-8">
+          <div class="rounded-2xl border p-6" style="border-color: var(--border); background: var(--card);">
+            <h2 class="text-base font-semibold mb-4">Edit chart</h2>
+            <form id="edit-chart-form" method="POST" class="grid gap-4 md:grid-cols-3">
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Schema</label>
+                <select id="edit-schema-select" name="schema_id" onchange="populateEditFields(this)"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="">— any schema —</option>
+                  {% for s in schemas %}
+                  <option value="{{ s.id }}">{{ s.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Field</label>
+                <select id="edit-field-select" name="field_name"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="">— pick schema first —</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Greenhouse (optional)</label>
+                <select id="edit-greenhouse-select" name="greenhouse_id"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="">— all greenhouses —</option>
+                  {% for g in greenhouses %}
+                  <option value="{{ g.id }}">{{ g.greenhouse_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Chart Type</label>
+                <select id="edit-chart-type" name="chart_type"
+                        class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                        style="border-color: var(--input); background: var(--background);">
+                  <option value="line">Line chart</option>
+                  <option value="bar">Bar chart</option>
+                  <option value="gauge">Gauge (latest value)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Chart Name</label>
+                <input id="edit-chart-name" type="text" name="chart_name" placeholder="Auto-filled from field"
+                       class="w-full rounded-xl border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                       style="border-color: var(--input);" />
+              </div>
+              <div>
+                <label class="text-xs uppercase tracking-wide block mb-1.5" style="color: var(--muted-foreground);">Color</label>
+                <input id="edit-chart-color" type="color" name="color" value="#22c55e"
+                       class="w-full h-11 rounded-xl border cursor-pointer"
+                       style="border-color: var(--input);" />
+              </div>
+              <div class="md:col-span-3 flex gap-3">
+                <button type="submit" class="rounded-full px-5 py-2 text-sm font-semibold text-white shadow"
+                        style="background: var(--primary);">Save Changes</button>
+                <button type="button" onclick="document.getElementById('edit-chart-panel').classList.add('hidden')"
+                        class="rounded-full border px-5 py-2 text-sm font-semibold"
+                        style="border-color: var(--border);">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Charts grid -->
+        {% if charts %}
+        <div class="grid gap-6 md:grid-cols-2">
+          {% for chart in charts %}
+          <div class="rounded-2xl border p-5" style="border-color: var(--border); background: var(--card);">
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <p class="text-xs uppercase tracking-widest" style="color: var(--muted-foreground);">
+                  {{ chart.schema_name or 'any schema' }}{% if chart.greenhouse_name %} &middot; {{ chart.greenhouse_name }}{% endif %}
+                </p>
+                <h3 class="text-base font-semibold">{{ chart.chart_name }}</h3>
+              </div>
+              <div class="flex items-center gap-1">
+                <button class="text-xs px-2 py-1 rounded-lg hover:bg-black/5 transition edit-chart-btn"
+                        style="color: var(--muted-foreground);"
+                        data-id="{{ chart.id }}"
+                        data-name="{{ chart.chart_name }}"
+                        data-type="{{ chart.chart_type }}"
+                        data-schema="{{ chart.schema_id or '' }}"
+                        data-field="{{ chart.field_name }}"
+                        data-greenhouse="{{ chart.greenhouse_id or '' }}"
+                        data-color="{{ chart.color }}">Edit</button>
+                <form action="{{ url_for('main.delete_chart', chart_id=chart.id) }}" method="POST"
+                      onsubmit="return confirmSubmit(this, 'Remove Chart', 'Are you sure you want to remove this chart?', {confirmLabel:'Remove', confirmStyle:'background:var(--destructive,#dc2626);'})">
+                  <button class="text-xs px-2 py-1 rounded-lg hover:bg-red-50 transition"
+                          style="color: var(--muted-foreground);">✕</button>
+                </form>
+              </div>
+            </div>
+
+            {% if chart.chart_type == 'gauge' %}
+            <div class="flex flex-col items-center justify-center py-6">
+              <p id="gauge-{{ chart.id }}" class="text-5xl font-semibold" data-color="{{ chart.color }}">—</p>
+              <p class="text-sm mt-3" style="color: var(--muted-foreground);">{{ chart.field_name }}</p>
+              <p class="text-xs mt-1" style="color: var(--muted-foreground);">latest reading</p>
+            </div>
+            {% else %}
+            <div class="relative" style="height: 200px;">
+              <canvas id="chart-{{ chart.id }}"></canvas>
+              <p class="no-data hidden text-center text-sm pt-20" style="color: var(--muted-foreground);">No data yet for <strong>{{ chart.field_name }}</strong>.</p>
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="rounded-2xl border p-12 text-center" style="border-color: var(--border); background: var(--card);">
+          <p class="text-lg font-semibold mb-2">No charts yet</p>
+          <p class="text-sm mb-6" style="color: var(--muted-foreground);">
+            Create a schema, push data, then add charts to visualize any field over time.
+          </p>
+          <button onclick="document.getElementById('add-chart-panel').classList.remove('hidden');window.scrollTo(0,0);"
+                  class="rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow"
+                  style="background: var(--primary);">Add your first chart</button>
+        </div>
+        {% endif %}
+
+      </main>
+    </div>
+
+    {% include 'layout/_modal.html' %}
+
+    <script id="schemas-json" type="application/json">{{ schemas | tojson }}</script>
+    <script id="charts-json" type="application/json">{{ charts | tojson }}</script>
+    <script>
+      const SCHEMAS = JSON.parse(document.getElementById('schemas-json').textContent);
+
+      function populateFields(select) {
+        const schemaId = parseInt(select.value);
+        const fieldSelect = document.getElementById('chart-field-select');
+        fieldSelect.innerHTML = '';
+        if (!schemaId) {
+          fieldSelect.innerHTML = '<option value="">— pick schema first —</option>';
+          return;
+        }
+        const schema = SCHEMAS.find(s => s.id === schemaId);
+        if (!schema || !schema.fields.length) {
+          fieldSelect.innerHTML = '<option value="">— no fields defined —</option>';
+          return;
+        }
+        schema.fields.filter(f => f.type !== 'text').forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.name;
+          opt.textContent = f.name + (f.unit ? ' (' + f.unit + ')' : '');
+          fieldSelect.appendChild(opt);
+        });
+      }
+
+      function populateEditFields(select) {
+        const schemaId = parseInt(select.value);
+        const fieldSelect = document.getElementById('edit-field-select');
+        fieldSelect.innerHTML = '';
+        if (!schemaId) {
+          fieldSelect.innerHTML = '<option value="">— pick schema first —</option>';
+          return;
+        }
+        const schema = SCHEMAS.find(s => s.id === schemaId);
+        if (!schema || !schema.fields.length) {
+          fieldSelect.innerHTML = '<option value="">— no fields defined —</option>';
+          return;
+        }
+        schema.fields.filter(f => f.type !== 'text').forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f.name;
+          opt.textContent = f.name + (f.unit ? ' (' + f.unit + ')' : '');
+          fieldSelect.appendChild(opt);
+        });
+      }
+
+      function openEditChart(btn) {
+        const chartId = btn.dataset.id;
+        const name = btn.dataset.name;
+        const type = btn.dataset.type;
+        const schemaId = btn.dataset.schema;
+        const fieldName = btn.dataset.field;
+        const greenhouseId = btn.dataset.greenhouse;
+        const color = btn.dataset.color;
+
+        const form = document.getElementById('edit-chart-form');
+        form.action = '/dashboard/charts/' + chartId + '/edit';
+        document.getElementById('edit-chart-name').value = name || '';
+        document.getElementById('edit-chart-type').value = type || 'line';
+        document.getElementById('edit-chart-color').value = color || '#22c55e';
+
+        const schemaSelect = document.getElementById('edit-schema-select');
+        schemaSelect.value = schemaId || '';
+        populateEditFields(schemaSelect);
+        document.getElementById('edit-field-select').value = fieldName || '';
+
+        document.getElementById('edit-greenhouse-select').value = greenhouseId || '';
+
+        document.getElementById('edit-chart-panel').classList.remove('hidden');
+        document.getElementById('add-chart-panel').classList.add('hidden');
+        document.getElementById('edit-chart-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      document.querySelectorAll('.edit-chart-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() { openEditChart(this); });
+      });
+
+      const CHARTS = JSON.parse(document.getElementById('charts-json').textContent);
+
+      CHARTS.forEach(function(chart) {
+        const field = chart.field_name;
+        const chartType = chart.chart_type;
+        const color = chart.color;
+        const chartId = chart.id;
+        if (chartType === 'gauge') {
+          const gaugeEl = document.getElementById('gauge-' + chartId);
+          if (gaugeEl) gaugeEl.style.color = color;
+        }
+        const params = new URLSearchParams({ field: field, limit: 150 });
+        if (chart.schema_id) params.set('schema_id', chart.schema_id);
+        if (chart.greenhouse_id) params.set('greenhouse_id', chart.greenhouse_id);
+
+        function loadChart() {
+          fetch('/api/chart-data?' + params.toString())
+            .then(r => r.json())
+            .then(d => {
+              if (chartType === 'gauge') {
+                const el = document.getElementById('gauge-' + chartId);
+                if (el && d.values && d.values.length) el.textContent = d.values[d.values.length - 1];
+                return;
+              }
+              const canvas = document.getElementById('chart-' + chartId);
+              if (!canvas) return;
+              if (!d.values || !d.values.length) {
+                canvas.classList.add('hidden');
+                const nd = canvas.parentElement.querySelector('.no-data');
+                if (nd) nd.classList.remove('hidden');
+                return;
+              }
+              if (canvas._chart) canvas._chart.destroy();
+              canvas._chart = new Chart(canvas, {
+                type: chartType,
+                data: {
+                  labels: d.labels,
+                  datasets: [{
+                    label: field,
+                    data: d.values,
+                    borderColor: color,
+                    backgroundColor: color + '33',
+                    tension: 0.4,
+                    fill: chartType === 'line',
+                    pointRadius: d.values.length > 60 ? 0 : 2,
+                  }]
+                },
+                options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                    x: { ticks: { maxTicksLimit: 6, maxRotation: 0, font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
+                    y: { ticks: { font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.04)' } }
+                  }
+                }
+              });
+            })
+            .catch(e => console.error('Chart error', chartId, e));
+        }
+        loadChart();
+      });
+
+      setInterval(function() {
+        CHARTS.filter(c => c.chart_type === 'gauge').forEach(function(chart) {
+          const p = new URLSearchParams({ field: chart.field_name, limit: 1 });
+          if (chart.schema_id) p.set('schema_id', chart.schema_id);
+          if (chart.greenhouse_id) p.set('greenhouse_id', chart.greenhouse_id);
+          fetch('/api/chart-data?' + p).then(r => r.json()).then(d => {
+            const el = document.getElementById('gauge-' + chart.id);
+            if (el) el.style.color = chart.color;
+            if (el && d.values && d.values.length) el.textContent = d.values[d.values.length - 1];
+          });
+        });
+      }, 30000);
+    </script>
+  </body>
+</html>

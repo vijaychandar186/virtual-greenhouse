@@ -1,0 +1,28 @@
+<header class="border-b sticky top-0 z-20 backdrop-blur-sm" style="border-color: var(--border); background: rgba(248,244,236,0.92);">
+  <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <div class="h-2.5 w-2.5 rounded-full" style="background: var(--primary);"></div>
+        <span class="text-sm font-semibold tracking-wide">Virtual Greenhouse</span>
+      </div>
+      <nav class="hidden md:flex items-center gap-1 text-sm">
+        <a class="rounded-lg px-3 py-1.5 transition hover:bg-black/5 {% if active == 'dashboard' %}font-semibold{% endif %}"
+           href="{{ url_for('main.dashboard') }}">Dashboard</a>
+        <a class="rounded-lg px-3 py-1.5 transition hover:bg-black/5 {% if active == 'greenhouses' %}font-semibold{% endif %}"
+           href="{{ url_for('greenhouse.existing') }}">Greenhouses</a>
+        <a class="rounded-lg px-3 py-1.5 transition hover:bg-black/5 {% if active == 'schemas' %}font-semibold{% endif %}"
+           href="{{ url_for('greenhouse.schemas') }}">Schemas</a>
+        <a class="rounded-lg px-3 py-1.5 transition hover:bg-black/5 {% if active == 'sensors' %}font-semibold{% endif %}"
+           href="{{ url_for('sensors.sensor_status') }}">Data</a>
+        <a class="rounded-lg px-3 py-1.5 transition hover:bg-black/5 {% if active == 'notifications' %}font-semibold{% endif %}"
+           href="{{ url_for('sensors.notifications') }}">Alerts</a>
+      </nav>
+    </div>
+    <div class="flex items-center gap-3">
+      <a class="rounded-lg px-3 py-1.5 text-sm transition hover:bg-black/5 {% if active == 'settings' %}font-semibold{% endif %}"
+         href="{{ url_for('auth.settings') }}">{{ session.username }}</a>
+      <a class="rounded-full px-3 py-1.5 text-sm font-semibold text-white shadow-sm" style="background: var(--primary);"
+         href="{{ url_for('auth.logout') }}">Logout</a>
+    </div>
+  </div>
+</header>
