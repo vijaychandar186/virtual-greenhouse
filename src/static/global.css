@@ -1,5 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&family=Space+Grotesk:wght@400;500;600&display=swap");
 
+@import url("./styles.css");
+
 :root {
   --radius: 0.7rem;
   --background: radial-gradient(circle at top, rgba(214, 232, 208, 0.8), rgba(248, 244, 236, 0.95) 50%), linear-gradient(120deg, rgba(241, 235, 222, 0.95), rgba(232, 243, 236, 0.9));
